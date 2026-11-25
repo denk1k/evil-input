@@ -340,6 +340,26 @@
       setTimeout(() => this._playTone(230, fancy ? 460 : 540, 0.10, 'sine', 0.24), 45);
     }
 
+    playTungWood() {
+      this._playTone(215, 165, 0.065, 'triangle', 0.16);
+      this._playNoise(0.025, 1400, 'bandpass', 0.10);
+    }
+
+    playTungWhack() {
+      this._playNoise(0.14, 1100, 'bandpass', 0.42);
+      this._playTone(380, 140, 0.16, 'sawtooth', 0.34);
+      setTimeout(() => this._playTone(290, 560, 0.14, 'triangle', 0.24), 55);
+    }
+
+    playTungStomp() {
+      this._playTone(240, 130, 0.08, 'triangle', 0.32);
+      setTimeout(() => this._playTone(660, 990, 0.14, 'triangle', 0.26), 50);
+    }
+
+    playDodgePop() {
+      this._playTone(784, 988, 0.045, 'sine', 0.07);
+    }
+
     playRadarBeep(locked) {
       this._playTone(locked ? 1380 : 880, locked ? 1420 : 880, locked ? 0.13 : 0.06, 'square', locked ? 0.24 : 0.14);
     }

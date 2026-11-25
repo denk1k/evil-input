@@ -335,6 +335,7 @@
       // Director milestones
       milestones: {
         night1: false,
+        tungIntro: false,
         modal1: false,
         rocketIntro: false,
         gravity1: false,
@@ -343,8 +344,9 @@
         modal2: false,
         gravity2: false
       },
-      spawnCooldown: 0.75,
+      spawnCooldown: 0.65,
       rocketCooldown: 999,
+      boostCooldown: 5.5,
       overtimeStarCooldown: 2.0,
       overtimeSpeakerCooldown: 9.0,
       modalAutoClose: 0,
@@ -359,6 +361,12 @@
       particles: [],
       floatingTexts: [],
       hudChunks: [], // Animated volume chunks flying between HUD and birds
+      speedLines: Array.from({ length: 12 }, () => ({
+        x: rand(0, STAGE_W),
+        y: rand(HUD_H + 14, FLOOR_Y - 14),
+        len: rand(26, 68),
+        sp: rand(1.15, 1.55)
+      })),
       clouds: [
         { x: 140, y: 112, s: 1.0 },
         { x: 420, y: 94, s: 0.85 },
@@ -930,6 +938,26 @@
     });
   }
 
+  function spawnTungSahur() {
+    const dir = state.gravityDir;
+    const w = 42;
+    const h = 74;
+    const y = dir === 1 ? FLOOR_Y - h : CEIL_Y;
+    state.obstacles.push({
+      type: 'tung',
+      x: STAGE_W + 34,
+      y,
+      w,
+      h,
+      dir,
+      phase: 0,
+      knockCount: 0,
+      tungPulse: 0,
+      hit: false,
+      dodged: false
+    });
+  }
+
   function spawnGravityGate() {
     state.obstacles.push({
       type: 'gate',
@@ -946,14 +974,15 @@
     const targetY = clamp(dinoCenterY() + (targetOffsetY || 0), CEIL_Y + 24, FLOOR_Y - 24);
     state.rockets.push({
       phase: 'tracking', // 'tracking' -> 'locked' -> 'firing'
-      timer: 0.62,
-      beepTimer: 0.22,
+      timer: 0.56,
+      beepTimer: 0.20,
       x: STAGE_W + 24,
       y: targetY,
       w: 58,
       h: 24,
-      vx: -740,
-      hit: false
+      vx: -840,
+      hit: false,
+      dodged: false
     });
     audio.playRadarBeep(false);
   }
@@ -970,13 +999,16 @@
     showBanner('🔊 BASS CLIPPING! JUMP BASS · DUCK TREBLE', '#ff6b35', 2.0);
   }
 
-  function spawnOverdriveStar() {
+  function spawnOverdriveStar(amount) {
+    const val = amount || 20;
     const dir = state.gravityDir;
-    const y = dir === 1 ? FLOOR_Y - 134 : CEIL_Y + 134;
+    const offset = val >= 20 ? 132 : rand(84, 122);
+    const y = dir === 1 ? FLOOR_Y - offset : CEIL_Y + offset;
     state.stars.push({
       x: STAGE_W + 24,
       y,
-      r: 22,
+      r: val >= 20 ? 22 : 18,
+      amount: val,
       spin: 0,
       collected: false
     });
@@ -1013,9 +1045,9 @@
   function updateDirector(dt) {
     const t = state.elapsed;
 
-    // Brisk but forgiving run speed: 345 -> 515 px/s
-    const speedMult = IS_PORTRAIT_PHONE ? 0.82 : 1.0;
-    state.speed = clamp(345 + t * 5.2, 345, 515) * speedMult;
+    // Fast, dynamic arcade speed: 430 -> 665 px/s!
+    const speedMult = IS_PORTRAIT_PHONE ? 0.84 : 1.0;
+    state.speed = clamp(430 + t * 7.8, 430, 665) * speedMult;
 
     // ---- Scripted Set-Piece Milestones ----
     if (!state.milestones.night1 && t >= 7.5) {
@@ -1024,7 +1056,14 @@
       showBanner('🩸 BLOOD MOON MODE', '#d61f3c', 1.5);
     }
 
-    if (!state.milestones.modal1 && t >= 12.0) {
+    if (!state.milestones.tungIntro && t >= 10.5) {
+      state.milestones.tungIntro = true;
+      showBanner('🪵 TUNG TUNG TUNG SAHUR! STOMP HEAD FOR +10%', '#c96a2b', 1.9);
+      spawnTungSahur();
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.05);
+    }
+
+    if (!state.milestones.modal1 && t >= 13.0) {
       state.milestones.modal1 = true;
       showHearingModal();
     }
@@ -1033,13 +1072,13 @@
       state.milestones.rocketIntro = true;
       showBanner('🚀 ROCKETS ONLINE!', '#ff3838', 1.7);
       spawnRocket(0);
-      state.rocketCooldown = 3.8;
+      state.rocketCooldown = 3.5;
     }
 
     if (!state.milestones.gravity1 && t >= 21.0) {
       state.milestones.gravity1 = true;
       spawnGravityGate();
-      state.spawnCooldown = Math.max(state.spawnCooldown, 1.25);
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.15);
     }
 
     if (!state.milestones.speaker1 && t >= 26.3 && state.gravityFlipTimer <= 0) {
@@ -1062,7 +1101,16 @@
     if (!state.milestones.gravity2 && t >= 47.0 && !state.speaker) {
       state.milestones.gravity2 = true;
       spawnGravityGate();
-      state.spawnCooldown = Math.max(state.spawnCooldown, 1.25);
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.15);
+    }
+
+    // ---- Early Volume Boost Notes (+8% from 0:06+) so fast play climbs rapidly ----
+    if (t >= 6.0 && t < 28.0 && !state.speaker) {
+      state.boostCooldown -= dt;
+      if (state.boostCooldown <= 0) {
+        spawnOverdriveStar(8);
+        state.boostCooldown = rand(2.8, 3.8);
+      }
     }
 
     // ---- Rocket Spawner (0:15+) ----
@@ -1070,15 +1118,15 @@
       state.rocketCooldown -= dt;
       if (state.rocketCooldown <= 0) {
         spawnRocket(0);
-        // Occasional staggered double-rocket only deep in overtime (0:40+)
-        if (t >= 40.0 && Math.random() > 0.60) {
+        // Occasional staggered double-rocket deep in overtime (0:40+)
+        if (t >= 40.0 && Math.random() > 0.58) {
           setTimeout(() => {
             if (state.mode === 'playing' && !state.speaker) {
               spawnRocket(state.gravityDir === 1 ? -52 : 52);
             }
-          }, 680);
+          }, 640);
         }
-        const baseInterval = t >= 35 ? 3.4 : t >= 29 ? 3.2 : 4.0;
+        const baseInterval = t >= 35 ? 3.2 : t >= 29 ? 3.0 : 3.8;
         state.rocketCooldown = rand(baseInterval - 0.4, baseInterval + 0.6);
       }
     }
@@ -1087,8 +1135,8 @@
     if (t >= 28.0) {
       state.overtimeStarCooldown -= dt;
       if (state.overtimeStarCooldown <= 0) {
-        spawnOverdriveStar();
-        state.overtimeStarCooldown = rand(3.2, 4.2);
+        spawnOverdriveStar(20);
+        state.overtimeStarCooldown = rand(2.8, 3.8);
       }
 
       if (t >= 35.0 && !state.speaker && state.gravityFlipTimer <= 0) {
@@ -1107,18 +1155,18 @@
 
     state.spawnCooldown -= dt;
     if (state.spawnCooldown <= 0) {
-      // Ensure comfortable fair pixel spacing from the rightmost obstacle
+      // Scale minimum horizontal spacing directly with high run speed so gaps stay clean
       let rightmost = 0;
       for (const ob of state.obstacles) {
         if (ob.state !== 'fleeing' && ob.x > rightmost) rightmost = ob.x;
       }
-      const minGap = clamp(state.speed * 0.58, IS_PORTRAIT_PHONE ? 215 : 265, IS_PORTRAIT_PHONE ? 300 : 365);
+      const minGap = clamp(state.speed * 0.56, IS_PORTRAIT_PHONE ? 225 : 275, IS_PORTRAIT_PHONE ? 320 : 390);
       if (STAGE_W - rightmost < minGap && rightmost > 0) {
-        state.spawnCooldown = 0.14;
+        state.spawnCooldown = 0.12;
         return;
       }
 
-      // Pick from unlocked phase pool (potatoes join early at 0:08!)
+      // Dynamic unlocked pool (potatoes at 0:08+, Tung Sahur at 0:10.5+)
       const roll = Math.random();
       if (t < 5.0) {
         spawnCactus();
@@ -1126,33 +1174,36 @@
         if (roll < 0.55) spawnCactus();
         else spawnBird();
       } else if (t < 11.0) {
-        if (roll < 0.36) spawnCactus();
-        else if (roll < 0.64) spawnBird();
+        if (roll < 0.35) spawnCactus();
+        else if (roll < 0.62) spawnBird();
         else spawnPotato();
       } else if (t < 16.5) {
-        if (roll < 0.30) spawnCactus();
-        else if (roll < 0.52) spawnBird();
-        else if (roll < 0.78) spawnPotato();
+        if (roll < 0.26) spawnCactus();
+        else if (roll < 0.46) spawnBird();
+        else if (roll < 0.68) spawnPotato();
+        else if (roll < 0.85) spawnTungSahur();
         else spawnFoamWall();
       } else if (t < 19.0) {
-        if (roll < 0.25) spawnCactus();
-        else if (roll < 0.44) spawnBird();
-        else if (roll < 0.68) spawnPotato();
-        else if (roll < 0.84) spawnFoamWall();
+        if (roll < 0.22) spawnCactus();
+        else if (roll < 0.38) spawnBird();
+        else if (roll < 0.58) spawnPotato();
+        else if (roll < 0.75) spawnTungSahur();
+        else if (roll < 0.88) spawnFoamWall();
         else spawnMuteDrone();
       } else {
-        // Full pool with frequent flying moustached potatoes
-        if (roll < 0.22) spawnCactus();
-        else if (roll < 0.39) spawnBird();
-        else if (roll < 0.62) spawnPotato();
-        else if (roll < 0.75) spawnFoamWall();
-        else if (roll < 0.88) spawnMuteDrone();
+        // Full high-speed chaotic pool
+        if (roll < 0.19) spawnCactus();
+        else if (roll < 0.34) spawnBird();
+        else if (roll < 0.53) spawnPotato();
+        else if (roll < 0.69) spawnTungSahur();
+        else if (roll < 0.80) spawnFoamWall();
+        else if (roll < 0.91) spawnMuteDrone();
         else spawnRewindTape();
       }
 
-      // Roomier rhythm that still escalates cleanly
-      const baseGapSec = clamp(1.32 - t * 0.012, 0.88, 1.32);
-      state.spawnCooldown = rand(baseGapSec * 0.85, baseGapSec * 1.15);
+      // Snappy fast-paced rhythm
+      const baseGapSec = clamp(1.12 - t * 0.013, 0.72, 1.12);
+      state.spawnCooldown = rand(baseGapSec * 0.82, baseGapSec * 1.15);
     }
   }
 
@@ -1269,13 +1320,13 @@
       } else if (state.shushTimer > 0) {
         passiveRate = 0;
       } else {
-        passiveRate = 4.6;
+        passiveRate = 5.6;
         if (state.volume >= 95) {
           const tElastic = clamp((state.volume - 95) / 5, 0, 1);
-          passiveRate *= lerp(0.68, 0.45, tElastic);
+          passiveRate *= lerp(0.78, 0.56, tElastic);
         }
         if (state.foamCount > 0) {
-          passiveRate *= 0.60;
+          passiveRate *= 0.68;
         }
       }
     }
@@ -1328,8 +1379,8 @@
 
     // Execute buffered jump
     if (input.jumpBuffer > 0 && d.coyote > 0) {
-      const foamPenalty = state.foamCount > 0 ? (1 - state.foamCount * 0.085) : 1;
-      const jumpPower = 720 * foamPenalty;
+      const foamPenalty = state.foamCount > 0 ? (1 - state.foamCount * 0.075) : 1;
+      const jumpPower = 755 * foamPenalty;
       d.vy = -jumpPower * state.gravityDir;
       d.grounded = false;
       d.ducking = false;
@@ -1360,7 +1411,7 @@
 
     // Vertical integration
     if (!d.grounded) {
-      d.vy += 2160 * state.gravityDir * dt;
+      d.vy += 2380 * state.gravityDir * dt;
       d.y += d.vy * dt;
 
       const sY = surfaceY();
@@ -1416,6 +1467,13 @@
     for (const gd of state.groundDots) {
       gd.x -= state.speed * dt;
       if (gd.x < -12) gd.x += STAGE_W + 30;
+    }
+    for (const sl of state.speedLines) {
+      sl.x -= state.speed * sl.sp * dt;
+      if (sl.x + sl.len < 0) {
+        sl.x = STAGE_W + rand(10, 90);
+        sl.y = rand(HUD_H + 14, FLOOR_Y - 14);
+      }
     }
 
     // Rising Evil Club crimson embers as volume / chaos intensifies
@@ -1544,10 +1602,21 @@
         continue;
       }
 
-      // Standard moving obstacles
-      ob.x -= state.speed * dt;
+      // Standard moving obstacles (Tung charges slightly faster!)
+      ob.x -= state.speed * (ob.type === 'tung' ? 1.08 : 1.0) * dt;
 
-      if (ob.type === 'potato') {
+      if (ob.type === 'tung') {
+        ob.phase += dt * 11;
+        ob.tungPulse = Math.max(0, ob.tungPulse - dt * 2.4);
+        const beat = Math.floor(ob.phase / Math.PI);
+        if (beat > ob.knockCount) {
+          ob.knockCount = beat;
+          ob.tungPulse = 1.0;
+          if (ob.x < STAGE_W && ob.x > 0) {
+            audio.playTungWood();
+          }
+        }
+      } else if (ob.type === 'potato') {
         ob.phase += dt * 5.2;
         ob.y = ob.baseY + Math.sin(ob.phase) * 11;
         if (ob.hasMoustache) {
@@ -1577,12 +1646,51 @@
         ob.y = ob.baseY - Math.abs(Math.sin(ob.spin * 0.6)) * 12 * ob.dir;
       }
 
+      // Clean dodge bonus! Surviving fast hazards actively boosts your volume
+      if (!ob.hit && !ob.dodged && ob.x + ob.w < d.x) {
+        ob.dodged = true;
+        changeVolume(1.5, 'recover');
+        audio.playDodgePop();
+        addFloatingText(d.x + 18, dinoCenterY() - 26, '+1.5%', '#2ed573', 0.82);
+      }
+
       // Slightly inset obstacle hitbox for fair near-misses
       const obHitBox = { x: ob.x + 3, y: ob.y + 3, w: Math.max(8, ob.w - 6), h: Math.max(8, ob.h - 6) };
 
       // Collision checks
       if (!ob.hit && aabb(hb, obHitBox)) {
-        if (ob.type === 'cactus' && d.invuln <= 0) {
+        if (ob.type === 'tung') {
+          // Check head-stomp (descending onto Tung's wooden top!)
+          const stomping = state.gravityDir === 1
+            ? (d.vy > 0 && hb.y + hb.h <= ob.y + 30)
+            : (d.vy < 0 && hb.y >= ob.y + ob.h - 30);
+          if (stomping) {
+            ob.hit = true;
+            d.vy = -540 * state.gravityDir;
+            d.grounded = false;
+            d.slamming = false;
+            changeVolume(10, 'recover');
+            audio.playTungStomp();
+            state.screenShake = Math.max(state.screenShake, 6);
+            addBurst(ob.x + ob.w * 0.5, ob.y + 12, '#df9d56', 16, 1.2);
+            addFloatingText(ob.x + 20, ob.y - 12, 'TUNG NOISE +10%!', '#2ed573', 1.2);
+            state.obstacles.splice(i, 1);
+            continue;
+          } else if (d.invuln <= 0) {
+            ob.hit = true;
+            changeVolume(-10, 'damage');
+            state.hitsTaken += 1;
+            d.invuln = 0.80;
+            d.hurtFace = 0.70;
+            d.grounded = false;
+            d.vy = -420 * state.gravityDir;
+            d.x = Math.max(46, d.x - 40);
+            state.screenShake = Math.max(state.screenShake, 9);
+            audio.playTungWhack();
+            addBurst(ob.x + 12, dinoCenterY(), '#df9d56', 14, 1.2);
+            addFloatingText(d.x + 30, dinoCenterY() - 28, 'TUNG WHACK! -10%', '#ff6b2b', 1.15);
+          }
+        } else if (ob.type === 'cactus' && d.invuln <= 0) {
           ob.hit = true;
           changeVolume(-6, 'damage');
           state.hitsTaken += 1;
@@ -1748,6 +1856,13 @@
           continue;
         }
 
+        if (!r.hit && !r.dodged && r.x + r.w < d.x) {
+          r.dodged = true;
+          changeVolume(2.0, 'recover');
+          audio.playDodgePop();
+          addFloatingText(d.x + 18, dinoCenterY() - 28, 'ROCKET DODGED +2%!', '#2ed573', 0.9);
+        }
+
         if (r.x + r.w < -40) {
           state.rockets.splice(i, 1);
         }
@@ -1844,10 +1959,11 @@
       const sBox = { x: st.x - st.r, y: st.y - st.r, w: st.r * 2, h: st.r * 2 };
       if (!st.collected && aabb(hb, sBox)) {
         st.collected = true;
-        changeVolume(20, 'recover');
+        const amt = st.amount || 20;
+        changeVolume(amt, 'recover');
         audio.playStarPickup();
-        addBurst(st.x, st.y, '#ffdd59', 20, 1.3);
-        addFloatingText(st.x, st.y - 14, 'OVERDRIVE +20%!', '#f5a623', 1.25);
+        addBurst(st.x, st.y, '#ffdd59', amt >= 20 ? 20 : 12, 1.25);
+        addFloatingText(st.x, st.y - 14, amt >= 20 ? `OVERDRIVE +${amt}%!` : `BOOST +${amt}%!`, '#f5a623', amt >= 20 ? 1.25 : 1.1);
         state.stars.splice(i, 1);
         continue;
       }
@@ -2098,6 +2214,15 @@
       ctx.fillRect(cl.x + 10 * s, cl.y - 7 * s, 26 * s, 9 * s);
     }
 
+    // Dynamic speed streaks when sprinting fast!
+    if (state.mode === 'playing' && state.speed > 440) {
+      const streakAlpha = clamp((state.speed - 430) / 260, 0.08, 0.28);
+      ctx.fillStyle = na > 0.5 ? `rgba(255, 92, 118, ${streakAlpha})` : `rgba(184, 20, 47, ${streakAlpha * 0.65})`;
+      for (const sl of state.speedLines) {
+        ctx.fillRect(sl.x, sl.y, sl.len, 2);
+      }
+    }
+
     // Approaching 100% EVIL Hazard Finish Ribbon teaser when >= 94%
     if (state.mode === 'playing' && state.volume >= 94) {
       const progress = clamp((state.volume - 94) / 6, 0, 1);
@@ -2269,6 +2394,147 @@
         }
 
         ctx.restore();
+      } else if (ob.type === 'tung') {
+        // Tung Tung Tung Sahur: wooden log cylinder guy with huge staring eyes, grin, big feet & swinging bat!
+        ctx.save();
+        const cx = ob.x + ob.w * 0.5;
+        const cy = ob.y + ob.h * 0.5;
+        ctx.translate(cx, cy);
+        if (ob.dir === -1) ctx.scale(1, -1);
+
+        const stride = Math.sin(ob.phase) * 7;
+        const swing = Math.sin(ob.phase * 0.9);
+        const bodyW = 28;
+        const bodyH = 44;
+        const bodyX = -bodyW * 0.5;
+        const bodyY = -ob.h * 0.5 + 2;
+
+        // Ground-bang "TUNG!" shockwave ring on bat strike
+        if (ob.tungPulse > 0.05) {
+          ctx.save();
+          ctx.globalAlpha = ob.tungPulse * 0.85;
+          ctx.strokeStyle = '#ff6b2b';
+          ctx.lineWidth = 2.5;
+          const ringR = (1 - ob.tungPulse) * 26 + 8;
+          ctx.beginPath();
+          ctx.ellipse(-18, ob.h * 0.5 - 2, ringR, 6, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.font = '900 11px ui-monospace, monospace';
+          ctx.fillStyle = '#c2410c';
+          ctx.textAlign = 'center';
+          ctx.fillText('TUNG!', -18, bodyY - 5);
+          ctx.restore();
+        }
+
+        // Skinny legs & oversized bare feet
+        ctx.strokeStyle = '#8c4a1c';
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-6, bodyY + bodyH - 2);
+        ctx.lineTo(-6 - stride * 0.7, ob.h * 0.5 - 3);
+        ctx.moveTo(6, bodyY + bodyH - 2);
+        ctx.lineTo(6 + stride * 0.7, ob.h * 0.5 - 3);
+        ctx.stroke();
+
+        ctx.fillStyle = '#c47b45';
+        ctx.strokeStyle = '#4a2208';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.ellipse(-9 - stride * 0.7, ob.h * 0.5 - 2, 7.5, 3.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(3 + stride * 0.7, ob.h * 0.5 - 2, 7.5, 3.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Cylindrical wooden log body
+        const woodGrad = ctx.createLinearGradient(bodyX, 0, bodyX + bodyW, 0);
+        woodGrad.addColorStop(0, '#e39e5d');
+        woodGrad.addColorStop(0.55, '#c47234');
+        woodGrad.addColorStop(1, '#8c4416');
+        ctx.fillStyle = woodGrad;
+        ctx.strokeStyle = '#421d06';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.roundRect(bodyX, bodyY, bodyW, bodyH, [12, 12, 5, 5]);
+        ctx.fill();
+        ctx.stroke();
+
+        // Subtle wood-grain vertical lines
+        ctx.strokeStyle = 'rgba(70, 28, 6, 0.30)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-6, bodyY + 26);
+        ctx.lineTo(-6, bodyY + bodyH - 4);
+        ctx.moveTo(7, bodyY + 28);
+        ctx.lineTo(7, bodyY + bodyH - 4);
+        ctx.stroke();
+
+        // Huge staring round meme eyes!
+        for (const side of [-1, 1]) {
+          const ex = side * 6.2;
+          const ey = bodyY + 13;
+          ctx.fillStyle = '#5c290a';
+          ctx.beginPath();
+          ctx.arc(ex, ey, 6.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex, ey, 5.0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#291003';
+          ctx.beginPath();
+          ctx.arc(ex - 0.6, ey + 0.3, 2.7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex - 1.5, ey - 1.2, 1.0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Nose & wide cheeky grin
+        ctx.fillStyle = '#853c11';
+        ctx.beginPath();
+        ctx.ellipse(0, bodyY + 18, 2.2, 2.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#4a1b06';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(0, bodyY + 21, 7.2, 0.15, Math.PI - 0.15);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Front skinny arm + swinging wooden baseball bat!
+        ctx.save();
+        ctx.translate(bodyX + 2, bodyY + 27);
+        ctx.rotate(-0.45 + swing * 0.65);
+        ctx.strokeStyle = '#8c4a1c';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-9, 10);
+        ctx.stroke();
+
+        // Baseball bat tapering out from hand
+        ctx.fillStyle = '#dea059';
+        ctx.strokeStyle = '#4a2208';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(-9, 10);
+        ctx.lineTo(-27, 25);
+        ctx.lineTo(-22, 30);
+        ctx.lineTo(-7, 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.restore();
       } else if (ob.type === 'drone') {
         // Mute Vacuum Quadcopter Drone
         ctx.fillStyle = '#2f3542';
@@ -2342,19 +2608,20 @@
       ctx.textAlign = 'left';
     }
 
-    // ---- Draw Overtime +20% Overdrive Stars ----
+    // ---- Draw Floating Boost & Overdrive Stars ----
     for (const st of state.stars) {
+      const amt = st.amount || 20;
       ctx.save();
-      drawStarShape(st.x, st.y, st.r, st.r * 0.48, 5, st.spin);
-      ctx.fillStyle = '#ffdd59';
+      drawStarShape(st.x, st.y, st.r, st.r * 0.50, 5, st.spin);
+      ctx.fillStyle = amt >= 20 ? '#ffdd59' : '#ffeaa7';
       ctx.fill();
       ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#e67e22';
+      ctx.strokeStyle = amt >= 20 ? '#e67e22' : '#ff6b2b';
       ctx.stroke();
       ctx.fillStyle = '#1e272e';
-      ctx.font = '900 13px ui-monospace, monospace';
+      ctx.font = '900 12px ui-monospace, monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('+20', st.x, st.y + 4.5);
+      ctx.fillText(`+${amt}`, st.x, st.y + 4.5);
       ctx.restore();
     }
 
