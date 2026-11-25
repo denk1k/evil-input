@@ -123,12 +123,12 @@
     '    11            '
   ];
 
-  const NEIGHBOR_QUIPS = [
-    'KEEP IT DOWN!',
-    "IT'S 11 PM!",
+  const POTATO_QUIPS = [
+    'KEEP IT DOWN, GOOD SIR!',
+    'MY MOUSTACHE IS VIBRATING!',
     'CALLING EVIL HR!',
-    'MY CAT IS SHAKING!',
-    'TURN THAT DOWN!'
+    'QUITE BARBARIC!',
+    'MY TEA IS SHAKING!'
   ];
 
   // ---- DOM References ----
@@ -449,8 +449,8 @@
   function spawnStickyNote(penalty) {
     const note = document.createElement('div');
     note.className = 'sticky-note';
-    const quip = NEIGHBOR_QUIPS[Math.floor(Math.random() * NEIGHBOR_QUIPS.length)];
-    note.innerHTML = `<span class="sticky-title">NEIGHBOUR COMPLAINT (-${penalty}%)</span>${quip}`;
+    const quip = POTATO_QUIPS[Math.floor(Math.random() * POTATO_QUIPS.length)];
+    note.innerHTML = `<span class="sticky-title">SIR SPUD COMPLAINT (-${penalty}%)</span>${quip}`;
     const minX = IS_PORTRAIT_PHONE ? 165 : 260;
     const maxX = Math.max(minX + 20, STAGE_W - 245);
     const left = Math.floor(rand(minX, maxX));
@@ -463,10 +463,10 @@
 
     setTimeout(() => {
       note.classList.add('peel');
-    }, 2200);
+    }, 1650);
     setTimeout(() => {
       if (note.parentNode) note.parentNode.removeChild(note);
-    }, 2600);
+    }, 2050);
   }
 
   function showBanner(text, color, duration) {
@@ -788,10 +788,10 @@
     e.stopPropagation();
     audio.init();
     hideHearingModal();
-    changeVolume(-25, 'damage');
+    changeVolume(-15, 'damage');
     state.hitsTaken += 1;
     audio.playShush();
-    addFloatingText(STAGE_W * 0.54, HUD_H + 56, 'GOOD CITIZEN! -25%', '#ff4757', 1.15);
+    addFloatingText(STAGE_W * 0.54, HUD_H + 56, 'GOOD CITIZEN! -15%', '#ff4757', 1.15);
   });
 
   // ---- Obstacle & Entity Spawners ----
@@ -841,7 +841,7 @@
       flap: 0,
       fleeTimer: 0,
       reclaimGrace: 0,
-      stolenAmount: 12,
+      stolenAmount: 9,
       vx: 0,
       vy: 0
     });
@@ -863,20 +863,34 @@
     });
   }
 
-  function spawnNeighbor() {
+  function spawnPotato() {
     const dir = state.gravityDir;
+    const hasMoustache = Math.random() < 0.45;
+    const w = hasMoustache ? 48 : 34;
+    const h = hasMoustache ? 36 : 28;
     const low = Math.random() > 0.45;
-    const offset = low ? 62 : 104;
-    const h = 44;
+    const offset = low ? 58 : 104;
     const y = dir === 1 ? FLOOR_Y - offset : CEIL_Y + offset - h;
+    const spots = [];
+    for (let s = 0; s < 5; s++) {
+      spots.push({
+        dx: rand(-0.34, 0.34),
+        dy: rand(-0.32, 0.32),
+        r: rand(1.4, 2.5)
+      });
+    }
     state.obstacles.push({
-      type: 'neighbor',
+      type: 'potato',
+      hasMoustache,
       x: STAGE_W + 32,
       y,
       baseY: y,
-      w: 48,
+      w,
       h,
       phase: rand(0, Math.PI * 2),
+      rot: rand(-0.22, 0.22),
+      rotSpeed: hasMoustache ? 0 : rand(-3.6, 3.6),
+      spots,
       hit: false
     });
   }
@@ -932,13 +946,13 @@
     const targetY = clamp(dinoCenterY() + (targetOffsetY || 0), CEIL_Y + 24, FLOOR_Y - 24);
     state.rockets.push({
       phase: 'tracking', // 'tracking' -> 'locked' -> 'firing'
-      timer: 0.46,
-      beepTimer: 0.20,
+      timer: 0.62,
+      beepTimer: 0.22,
       x: STAGE_W + 24,
       y: targetY,
       w: 58,
       h: 24,
-      vx: -900,
+      vx: -740,
       hit: false
     });
     audio.playRadarBeep(false);
@@ -970,15 +984,15 @@
 
   function spawnVolumePellets(originX, originY) {
     const dir = state.gravityDir;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       state.pellets.push({
         x: originX + rand(10, 28),
         y: originY,
-        vx: rand(155, 305),
-        vy: rand(-295, -445) * dir,
+        vx: rand(145, 285),
+        vy: rand(-275, -420) * dir,
         r: 10,
-        life: 2.35,
-        pickupDelay: 0.18,
+        life: 2.6,
+        pickupDelay: 0.16,
         bounces: 0
       });
     }
@@ -999,9 +1013,9 @@
   function updateDirector(dt) {
     const t = state.elapsed;
 
-    // Fast escalating run speed: 395 -> 625 px/s (slightly gentler on narrow portrait screens for fair reaction time)
-    const speedMult = IS_PORTRAIT_PHONE ? 0.84 : 1.0;
-    state.speed = clamp(395 + t * 7.2, 395, 625) * speedMult;
+    // Brisk but forgiving run speed: 345 -> 515 px/s
+    const speedMult = IS_PORTRAIT_PHONE ? 0.82 : 1.0;
+    state.speed = clamp(345 + t * 5.2, 345, 515) * speedMult;
 
     // ---- Scripted Set-Piece Milestones ----
     if (!state.milestones.night1 && t >= 7.5) {
@@ -1019,13 +1033,13 @@
       state.milestones.rocketIntro = true;
       showBanner('🚀 ROCKETS ONLINE!', '#ff3838', 1.7);
       spawnRocket(0);
-      state.rocketCooldown = 3.3;
+      state.rocketCooldown = 3.8;
     }
 
     if (!state.milestones.gravity1 && t >= 21.0) {
       state.milestones.gravity1 = true;
       spawnGravityGate();
-      state.spawnCooldown = Math.max(state.spawnCooldown, 1.15);
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.25);
     }
 
     if (!state.milestones.speaker1 && t >= 26.3 && state.gravityFlipTimer <= 0) {
@@ -1033,11 +1047,11 @@
       spawnSpeakerCannon();
     }
 
-    if (!state.milestones.overtime && t >= 35.0) {
+    if (!state.milestones.overtime && t >= 28.0) {
       state.milestones.overtime = true;
-      showBanner('★ OVERTIME! GRAB +20% STARS!', '#f5a623', 2.2);
+      showBanner('★ GRAB +20% OVERDRIVE STARS!', '#f5a623', 2.0);
       state.overtimeStarCooldown = 1.0;
-      state.overtimeSpeakerCooldown = 8.5;
+      state.overtimeSpeakerCooldown = 10.0;
     }
 
     if (!state.milestones.modal2 && t >= 38.5 && hearingModal.classList.contains('hidden')) {
@@ -1048,7 +1062,7 @@
     if (!state.milestones.gravity2 && t >= 47.0 && !state.speaker) {
       state.milestones.gravity2 = true;
       spawnGravityGate();
-      state.spawnCooldown = Math.max(state.spawnCooldown, 1.15);
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.25);
     }
 
     // ---- Rocket Spawner (0:15+) ----
@@ -1056,32 +1070,32 @@
       state.rocketCooldown -= dt;
       if (state.rocketCooldown <= 0) {
         spawnRocket(0);
-        // Overtime occasional staggered double-rocket!
-        if (t >= 35.0 && Math.random() > 0.48) {
+        // Occasional staggered double-rocket only deep in overtime (0:40+)
+        if (t >= 40.0 && Math.random() > 0.60) {
           setTimeout(() => {
             if (state.mode === 'playing' && !state.speaker) {
-              spawnRocket(state.gravityDir === 1 ? -46 : 46);
+              spawnRocket(state.gravityDir === 1 ? -52 : 52);
             }
-          }, 560);
+          }, 680);
         }
-        const baseInterval = t >= 35 ? 2.8 : t >= 29 ? 2.5 : 3.4;
-        state.rocketCooldown = rand(baseInterval - 0.5, baseInterval + 0.7);
+        const baseInterval = t >= 35 ? 3.4 : t >= 29 ? 3.2 : 4.0;
+        state.rocketCooldown = rand(baseInterval - 0.4, baseInterval + 0.6);
       }
     }
 
-    // ---- Overtime Comeback Stars & Returning Speaker ----
-    if (t >= 35.0) {
+    // ---- Comeback Stars (0:28+) & Returning Speaker ----
+    if (t >= 28.0) {
       state.overtimeStarCooldown -= dt;
       if (state.overtimeStarCooldown <= 0) {
         spawnOverdriveStar();
-        state.overtimeStarCooldown = rand(3.8, 4.8);
+        state.overtimeStarCooldown = rand(3.2, 4.2);
       }
 
-      if (!state.speaker && state.gravityFlipTimer <= 0) {
+      if (t >= 35.0 && !state.speaker && state.gravityFlipTimer <= 0) {
         state.overtimeSpeakerCooldown -= dt;
         if (state.overtimeSpeakerCooldown <= 0) {
           spawnSpeakerCannon();
-          state.overtimeSpeakerCooldown = 13.0;
+          state.overtimeSpeakerCooldown = 14.0;
         }
       }
     }
@@ -1093,53 +1107,52 @@
 
     state.spawnCooldown -= dt;
     if (state.spawnCooldown <= 0) {
-      // Ensure minimum fair pixel spacing from the rightmost obstacle
+      // Ensure comfortable fair pixel spacing from the rightmost obstacle
       let rightmost = 0;
       for (const ob of state.obstacles) {
         if (ob.state !== 'fleeing' && ob.x > rightmost) rightmost = ob.x;
       }
-      const minGap = clamp(state.speed * 0.52, IS_PORTRAIT_PHONE ? 200 : 250, IS_PORTRAIT_PHONE ? 290 : 345);
+      const minGap = clamp(state.speed * 0.58, IS_PORTRAIT_PHONE ? 215 : 265, IS_PORTRAIT_PHONE ? 300 : 365);
       if (STAGE_W - rightmost < minGap && rightmost > 0) {
         state.spawnCooldown = 0.14;
         return;
       }
 
-      // Pick from unlocked phase pool
+      // Pick from unlocked phase pool (potatoes join early at 0:08!)
       const roll = Math.random();
       if (t < 5.0) {
         spawnCactus();
-      } else if (t < 10.0) {
+      } else if (t < 8.0) {
         if (roll < 0.55) spawnCactus();
         else spawnBird();
-      } else if (t < 15.0) {
-        if (roll < 0.34) spawnCactus();
-        else if (roll < 0.58) spawnBird();
-        else if (roll < 0.79) spawnFoamWall();
-        else spawnNeighbor();
-      } else if (t < 17.0) {
-        if (roll < 0.34) spawnCactus();
-        else if (roll < 0.56) spawnBird();
-        else if (roll < 0.78) spawnFoamWall();
-        else spawnNeighbor();
+      } else if (t < 11.0) {
+        if (roll < 0.36) spawnCactus();
+        else if (roll < 0.64) spawnBird();
+        else spawnPotato();
+      } else if (t < 16.5) {
+        if (roll < 0.30) spawnCactus();
+        else if (roll < 0.52) spawnBird();
+        else if (roll < 0.78) spawnPotato();
+        else spawnFoamWall();
       } else if (t < 19.0) {
-        if (roll < 0.28) spawnCactus();
-        else if (roll < 0.48) spawnBird();
-        else if (roll < 0.64) spawnFoamWall();
-        else if (roll < 0.80) spawnNeighbor();
+        if (roll < 0.25) spawnCactus();
+        else if (roll < 0.44) spawnBird();
+        else if (roll < 0.68) spawnPotato();
+        else if (roll < 0.84) spawnFoamWall();
         else spawnMuteDrone();
       } else {
-        // Full chaotic pool
-        if (roll < 0.24) spawnCactus();
-        else if (roll < 0.42) spawnBird();
-        else if (roll < 0.55) spawnFoamWall();
-        else if (roll < 0.69) spawnNeighbor();
-        else if (roll < 0.84) spawnMuteDrone();
+        // Full pool with frequent flying moustached potatoes
+        if (roll < 0.22) spawnCactus();
+        else if (roll < 0.39) spawnBird();
+        else if (roll < 0.62) spawnPotato();
+        else if (roll < 0.75) spawnFoamWall();
+        else if (roll < 0.88) spawnMuteDrone();
         else spawnRewindTape();
       }
 
-      // Tight, snappy rhythm that speeds up gently over time
-      const baseGapSec = clamp(1.12 - t * 0.014, 0.68, 1.12);
-      state.spawnCooldown = rand(baseGapSec * 0.82, baseGapSec * 1.18);
+      // Roomier rhythm that still escalates cleanly
+      const baseGapSec = clamp(1.32 - t * 0.012, 0.88, 1.32);
+      state.spawnCooldown = rand(baseGapSec * 0.85, baseGapSec * 1.15);
     }
   }
 
@@ -1252,17 +1265,17 @@
     let passiveRate = 0;
     if (!state.braking) {
       if (state.rewindTimer > 0) {
-        passiveRate = -5.1;
+        passiveRate = -3.0;
       } else if (state.shushTimer > 0) {
         passiveRate = 0;
       } else {
-        passiveRate = 3.45;
+        passiveRate = 4.6;
         if (state.volume >= 95) {
           const tElastic = clamp((state.volume - 95) / 5, 0, 1);
-          passiveRate *= lerp(0.54, 0.28, tElastic);
+          passiveRate *= lerp(0.68, 0.45, tElastic);
         }
         if (state.foamCount > 0) {
-          passiveRate *= 0.45;
+          passiveRate *= 0.60;
         }
       }
     }
@@ -1277,7 +1290,7 @@
     if (state.latchedDrone) {
       state.latchedDrone.timer -= dt;
       state.latchedDrone.pulse += dt * 12;
-      const drain = 8.0 * dt;
+      const drain = 5.5 * dt;
       state.volume = clamp(state.volume - drain, MIN_VOL, MAX_VOL);
       state.volumeLost += drain;
       if (state.latchedDrone.timer <= 0) {
@@ -1433,12 +1446,13 @@
       if (ob.type === 'bird') {
         ob.flap += dt * 10;
         if (ob.state === 'incoming') {
-          ob.x -= state.speed * 1.12 * dt;
-          if (d.invuln <= 0 && aabb(hb, ob)) {
-            // Pickpocket steals 12%!
+          ob.x -= state.speed * 1.10 * dt;
+          const birdHitBox = { x: ob.x + 4, y: ob.y + 3, w: ob.w - 8, h: ob.h - 6 };
+          if (d.invuln <= 0 && aabb(hb, birdHitBox)) {
+            // Pickpocket steals 9%!
             changeVolume(-ob.stolenAmount, 'damage');
             state.hitsTaken += 1;
-            d.invuln = 0.40;
+            d.invuln = 0.72;
             d.hurtFace = 0.55;
             audio.playBirdSteal();
             addFloatingText(d.x + 28, dinoCenterY() - 24, `STOLEN -${ob.stolenAmount}%! JUMP TO BONK!`, '#ff4757', 1.0);
@@ -1533,9 +1547,28 @@
       // Standard moving obstacles
       ob.x -= state.speed * dt;
 
-      if (ob.type === 'neighbor') {
-        ob.phase += dt * 7;
-        ob.y = ob.baseY + Math.sin(ob.phase) * 9;
+      if (ob.type === 'potato') {
+        ob.phase += dt * 5.2;
+        ob.y = ob.baseY + Math.sin(ob.phase) * 11;
+        if (ob.hasMoustache) {
+          ob.rot = Math.sin(ob.phase * 0.7) * 0.14;
+        } else {
+          ob.rot += ob.rotSpeed * dt;
+        }
+        // Subtle blue/golden flying sparkle crumbs like the reference screenshot
+        if (Math.random() < 0.24) {
+          state.particles.push({
+            x: ob.x + ob.w * 0.85,
+            y: ob.y + ob.h * 0.5 + rand(-10, 10),
+            vx: rand(20, 65),
+            vy: rand(-20, 20),
+            size: rand(2, 3.8),
+            color: Math.random() > 0.4 ? '#9be7ff' : '#ffe899',
+            life: 0.38,
+            maxLife: 0.38,
+            gravity: 0
+          });
+        }
       } else if (ob.type === 'drone') {
         ob.phase += dt * 6;
         ob.y = ob.baseY + Math.sin(ob.phase) * 14;
@@ -1544,64 +1577,72 @@
         ob.y = ob.baseY - Math.abs(Math.sin(ob.spin * 0.6)) * 12 * ob.dir;
       }
 
+      // Slightly inset obstacle hitbox for fair near-misses
+      const obHitBox = { x: ob.x + 3, y: ob.y + 3, w: Math.max(8, ob.w - 6), h: Math.max(8, ob.h - 6) };
+
       // Collision checks
-      if (!ob.hit && aabb(hb, ob)) {
+      if (!ob.hit && aabb(hb, obHitBox)) {
         if (ob.type === 'cactus' && d.invuln <= 0) {
           ob.hit = true;
-          changeVolume(-8, 'damage');
+          changeVolume(-6, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.45;
+          d.invuln = 0.75;
           d.hurtFace = 0.55;
-          state.screenShake = Math.max(state.screenShake, 5);
+          state.screenShake = Math.max(state.screenShake, 4);
           audio.playCactusSqueak();
           spawnVolumePellets(d.x + 24, dinoCenterY());
           addBurst(ob.x + ob.w * 0.5, ob.y + ob.h * 0.5, '#2ed573', 8, 0.9);
-          addFloatingText(d.x + 24, dinoCenterY() - 24, 'SPILL -8%! CATCH!', '#ff6b6b', 1.0);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, 'SPILL -6%! CATCH!', '#ff6b6b', 1.0);
         } else if (ob.type === 'foam' && d.invuln <= 0) {
           ob.hit = true;
-          changeVolume(-5, 'damage');
+          changeVolume(-4, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.40;
+          d.invuln = 0.70;
           d.hurtFace = 0.45;
-          state.foamCount = 3;
-          state.foamTimer = 4.2;
+          state.foamCount = 2;
+          state.foamTimer = 3.5;
           audio.playFoam();
-          addBurst(ob.x + 17, ob.y + 24, '#636e72', 14, 1.05);
-          addFloatingText(d.x + 24, dinoCenterY() - 24, 'MUFFLED -5%! JUMP ×3', '#57606f', 1.05);
+          addBurst(ob.x + 17, ob.y + 24, '#636e72', 12, 1.0);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, 'MUFFLED -4%! JUMP ×2', '#57606f', 1.05);
           state.obstacles.splice(i, 1);
           continue;
-        } else if (ob.type === 'neighbor' && d.invuln <= 0) {
+        } else if (ob.type === 'potato' && d.invuln <= 0) {
           ob.hit = true;
-          changeVolume(-14, 'damage');
+          const penalty = ob.hasMoustache ? 10 : 6;
+          changeVolume(-penalty, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.45;
-          d.hurtFace = 0.6;
-          state.shushTimer = 2.5;
-          audio.playShush();
-          spawnStickyNote(14);
-          addBurst(ob.x + 18, ob.y + 18, '#ffdd59', 10, 0.9);
-          addFloatingText(d.x + 24, dinoCenterY() - 26, 'SHUSHED -14%!', '#e1b12c', 1.1);
+          d.invuln = 0.75;
+          d.hurtFace = 0.55;
+          audio.playPotatoHit(ob.hasMoustache);
+          addBurst(ob.x + ob.w * 0.5, ob.y + ob.h * 0.5, '#ffd86b', 14, 1.05);
+          if (ob.hasMoustache) {
+            state.shushTimer = 1.6;
+            spawnStickyNote(penalty);
+            addFloatingText(d.x + 28, dinoCenterY() - 26, 'SIR SPUD SAYS SHH! -10%', '#e1b12c', 1.05);
+          } else {
+            addFloatingText(d.x + 28, dinoCenterY() - 26, 'POTATO\'D! -6%', '#f5a623', 1.05);
+          }
           state.obstacles.splice(i, 1);
           continue;
         } else if (ob.type === 'drone' && !state.latchedDrone) {
           ob.hit = true;
           state.hitsTaken += 1;
           d.hurtFace = 0.5;
-          state.latchedDrone = { timer: 2.8, pulse: 0 };
+          state.latchedDrone = { timer: 2.2, pulse: 0 };
           audio.playDroneLatch();
           addFloatingText(d.x + 26, dinoCenterY() - 28, 'MUTE LATCHED! JUMP + ↓ SLAM!', '#a55eea', 1.05);
           state.obstacles.splice(i, 1);
           continue;
         } else if (ob.type === 'rewind' && d.invuln <= 0) {
           ob.hit = true;
-          changeVolume(-4, 'damage');
+          changeVolume(-3, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.42;
+          d.invuln = 0.72;
           d.hurtFace = 0.5;
-          state.rewindTimer = 3.0;
+          state.rewindTimer = 2.2;
           audio.playRewind();
           addBurst(ob.x + 18, ob.y + 13, '#9c88ff', 12, 1.0);
-          addFloatingText(d.x + 24, dinoCenterY() - 24, '⏪ REWINDING VOLUME!', '#8c7ae6', 1.1);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, '⏪ REWIND -3%!', '#8c7ae6', 1.05);
           state.obstacles.splice(i, 1);
           continue;
         }
@@ -1661,7 +1702,7 @@
         }
         if (r.timer <= 0) {
           r.phase = 'locked';
-          r.timer = 0.22;
+          r.timer = 0.28;
           audio.playRadarBeep(true);
         }
       } else if (r.phase === 'locked') {
@@ -1688,21 +1729,21 @@
           });
         }
 
-        const rBox = { x: r.x, y: r.y - r.h * 0.5, w: r.w, h: r.h };
+        const rBox = { x: r.x + 5, y: r.y - r.h * 0.5 + 3, w: r.w - 8, h: r.h - 6 };
         if (!r.hit && d.invuln <= 0 && aabb(hb, rBox)) {
           r.hit = true;
-          changeVolume(-18, 'damage');
+          changeVolume(-12, 'damage');
           state.hitsTaken += 1;
           state.rocketsEaten += 1;
-          d.invuln = 0.55;
+          d.invuln = 0.85;
           d.hurtFace = 0.85;
-          d.x = Math.max(42, d.x - 86);
-          state.muffleTimer = 2.0;
-          state.screenShake = 14;
+          d.x = Math.max(42, d.x - 62);
+          state.muffleTimer = 1.5;
+          state.screenShake = 11;
           audio.playRocketBoom();
           addBurst(r.x + 12, r.y, '#ff4757', 20, 1.45);
           addBurst(r.x + 12, r.y, '#ffa502', 14, 1.15);
-          addFloatingText(d.x + 36, dinoCenterY() - 28, 'BLOWOUT -18%!', '#ff3838', 1.25);
+          addFloatingText(d.x + 36, dinoCenterY() - 28, 'BLOWOUT -12%!', '#ff3838', 1.2);
           state.rockets.splice(i, 1);
           continue;
         }
@@ -1729,7 +1770,7 @@
               y: FLOOR_Y - 56,
               w: 36,
               h: 56,
-              vx: -540,
+              vx: -450,
               hit: false
             });
             sp.nextAttack = 'treble';
@@ -1738,14 +1779,14 @@
             state.speakerWaves.push({
               kind: 'treble',
               phase: 'telegraph',
-              timer: 0.44,
+              timer: 0.62,
               y: FLOOR_Y - 62, // Standing head height; ducking dino (36px) fits cleanly underneath!
               h: 20,
               hit: false
             });
             sp.nextAttack = 'bass';
           }
-          sp.fireTimer = 1.12;
+          sp.fireTimer = 1.32;
         }
         if (sp.timer <= 0) sp.exiting = true;
       } else {
@@ -1762,14 +1803,14 @@
         wv.x += wv.vx * dt;
         if (!wv.hit && d.invuln <= 0 && aabb(hb, wv)) {
           wv.hit = true;
-          changeVolume(-12, 'damage');
+          changeVolume(-9, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.45;
+          d.invuln = 0.72;
           d.hurtFace = 0.55;
-          state.screenShake = 8;
+          state.screenShake = 7;
           audio.playSlam();
           addBurst(d.x + 20, dinoCenterY(), '#ff6b35', 12, 1.0);
-          addFloatingText(d.x + 28, dinoCenterY() - 24, 'BASS BLAST -12%!', '#ff6b35', 1.1);
+          addFloatingText(d.x + 28, dinoCenterY() - 24, 'BASS BLAST -9%!', '#ff6b35', 1.1);
         }
         if (wv.x + wv.w < -40) state.speakerWaves.splice(i, 1);
       } else {
@@ -1783,12 +1824,12 @@
           const beamBox = { x: 0, y: wv.y, w: STAGE_W - 60, h: wv.h };
           if (!wv.hit && d.invuln <= 0 && aabb(hb, beamBox)) {
             wv.hit = true;
-            changeVolume(-12, 'damage');
+            changeVolume(-9, 'damage');
             state.hitsTaken += 1;
-            d.invuln = 0.45;
+            d.invuln = 0.72;
             d.hurtFace = 0.55;
             addBurst(d.x + 20, wv.y + 8, '#00d2d3', 12, 1.0);
-            addFloatingText(d.x + 28, dinoCenterY() - 24, 'TREBLE ZAP -12%!', '#00a8ff', 1.1);
+            addFloatingText(d.x + 28, dinoCenterY() - 24, 'TREBLE ZAP -9%!', '#00a8ff', 1.1);
           }
           if (wv.timer <= 0) state.speakerWaves.splice(i, 1);
         }
@@ -2151,19 +2192,83 @@
         ctx.fillStyle = '#dfe4ea';
         ctx.font = '900 12px ui-monospace, monospace';
         ctx.fillText('FOAM', ob.x + 6, ob.y + ob.h * 0.5 + 4);
-      } else if (ob.type === 'neighbor') {
-        // Angry Neighbour Shush Speech Bubble
-        ctx.fillStyle = '#ffdd59';
-        ctx.strokeStyle = '#221d0c';
-        ctx.lineWidth = 2.5;
+      } else if (ob.type === 'potato') {
+        // Flying Cute / Moustached Potato (vector gradient + spots + glossy eyes + handlebar moustache!)
+        const cx = ob.x + ob.w * 0.5;
+        const cy = ob.y + ob.h * 0.5;
+        const rx = ob.w * 0.5;
+        const ry = ob.h * 0.5;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(ob.rot);
+
+        // Warm golden toasted potato gradient
+        const grad = ctx.createRadialGradient(-rx * 0.28, -ry * 0.28, rx * 0.12, 0, 0, rx * 1.1);
+        grad.addColorStop(0, '#fff3b8');
+        grad.addColorStop(0.55, '#f7c152');
+        grad.addColorStop(1, '#d17b24');
+        ctx.fillStyle = grad;
+        ctx.strokeStyle = '#75380b';
+        ctx.lineWidth = 2.2;
         ctx.beginPath();
-        ctx.roundRect(ob.x, ob.y, ob.w, ob.h, 9);
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        ctx.font = '26px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🤫', ob.x + ob.w * 0.5, ob.y + 32);
-        ctx.textAlign = 'left';
+
+        // Potato skin dimples / freckles
+        ctx.fillStyle = 'rgba(179, 98, 22, 0.52)';
+        for (const sp of ob.spots) {
+          ctx.beginPath();
+          ctx.arc(sp.dx * ob.w, sp.dy * ob.h, sp.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Glossy oval eyes + white highlights
+        const eyeX = ob.hasMoustache ? 6.5 : 5.0;
+        const eyeY = ob.hasMoustache ? -4.0 : -2.5;
+        const eyeRx = ob.hasMoustache ? 3.2 : 2.6;
+        const eyeRy = ob.hasMoustache ? 4.2 : 3.4;
+
+        for (const side of [-1, 1]) {
+          ctx.fillStyle = '#1c0c04';
+          ctx.beginPath();
+          ctx.ellipse(side * eyeX, eyeY, eyeRx, eyeRy, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(side * eyeX - 1.0, eyeY - 1.3, 1.15, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Handlebar moustache (for ~45% Sir Spuds) + tiny mouth
+        if (ob.hasMoustache) {
+          ctx.fillStyle = '#6e3512';
+          ctx.strokeStyle = '#3d1904';
+          ctx.lineWidth = 1.4;
+          for (const side of [-1, 1]) {
+            ctx.beginPath();
+            ctx.moveTo(0, 1.5);
+            ctx.bezierCurveTo(side * 5, -2.5, side * 12, 4.5, side * 16.5, 0);
+            ctx.bezierCurveTo(side * 18.5, -2.0, side * 16.5, 6.2, side * 11, 6.5);
+            ctx.bezierCurveTo(side * 6, 6.8, side * 2.5, 3.8, 0, 4.2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+          // Tiny mouth dot below moustache
+          ctx.fillStyle = '#4f2208';
+          ctx.fillRect(-1.8, 7.5, 3.6, 1.8);
+        } else {
+          // Cute little oval mouth
+          ctx.fillStyle = '#4f2208';
+          ctx.beginPath();
+          ctx.ellipse(0, 3.5, 2.2, 1.3, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
       } else if (ob.type === 'drone') {
         // Mute Vacuum Quadcopter Drone
         ctx.fillStyle = '#2f3542';

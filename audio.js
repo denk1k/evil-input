@@ -335,6 +335,11 @@
       this._playNoise(0.32, 2600, 'bandpass', 0.36);
     }
 
+    playPotatoHit(fancy) {
+      this._playTone(fancy ? 260 : 340, 115, 0.11, 'triangle', 0.28);
+      setTimeout(() => this._playTone(230, fancy ? 460 : 540, 0.10, 'sine', 0.24), 45);
+    }
+
     playRadarBeep(locked) {
       this._playTone(locked ? 1380 : 880, locked ? 1420 : 880, locked ? 0.13 : 0.06, 'square', locked ? 0.24 : 0.14);
     }
