@@ -1,6 +1,6 @@
 /* THE DINO — Evil Club Edition
-   Scoped cleanly inside the exact 800x400 #stage, with responsive scaling
-   for big desktop screens and small phones. */
+   Scoped cleanly inside #stage, with chunky large-scale UI/sprites so everything
+   stays super legible both inside the 800x400 gallery and on small mobile screens. */
 
 * {
   box-sizing: border-box;
@@ -15,7 +15,7 @@ html, body {
   overflow: hidden;
   background: radial-gradient(circle at 50% 40%, #2b0b12 0%, #140508 75%, #0c0204 100%);
   color: #f7ecee;
-  font: 15px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font: 16px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -62,7 +62,7 @@ html, body {
 /* ---- Sticky Notes (Neighbour Noise Complaints) ---- */
 #sticky-layer {
   position: absolute;
-  inset: 58px 0 56px 0;
+  inset: 70px 0 64px 0;
   pointer-events: none;
   z-index: 12;
   overflow: hidden;
@@ -70,14 +70,14 @@ html, body {
 
 .sticky-note {
   position: absolute;
-  width: 182px;
-  padding: 10px 12px 12px;
-  background: rgba(255, 232, 163, 0.95);
+  width: 232px;
+  padding: 12px 14px 14px;
+  background: rgba(255, 232, 163, 0.96);
   color: #260b0f;
-  border: 2px solid #c92a3e;
-  box-shadow: 4px 5px 0 rgba(36, 5, 11, 0.34);
-  font-size: 13px;
-  font-weight: 700;
+  border: 2.5px solid #c92a3e;
+  box-shadow: 5px 6px 0 rgba(36, 5, 11, 0.36);
+  font-size: 16px;
+  font-weight: 800;
   line-height: 1.25;
   animation: stickyPop 0.18s cubic-bezier(0.2, 1.4, 0.4, 1) both;
   transition: opacity 0.35s ease, transform 0.35s ease;
@@ -86,21 +86,21 @@ html, body {
 .sticky-note::before {
   content: "";
   position: absolute;
-  top: -7px;
+  top: -8px;
   left: 50%;
   transform: translateX(-50%);
-  width: 44px;
-  height: 12px;
-  background: rgba(255, 46, 76, 0.48);
+  width: 52px;
+  height: 14px;
+  background: rgba(255, 46, 76, 0.52);
   border: 1px solid rgba(120, 12, 28, 0.25);
 }
 
 .sticky-note .sticky-title {
   display: block;
-  font-size: 10.5px;
+  font-size: 12.5px;
   letter-spacing: 0.04em;
   color: #c21830;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 .sticky-note.peel {
@@ -116,13 +116,13 @@ html, body {
 /* ---- Fake Evil Club HR Hearing Safety Modal ---- */
 .os-modal {
   position: absolute;
-  top: 76px;
-  left: 330px;
-  width: 348px;
+  top: 78px;
+  left: 240px;
+  width: 440px;
   background: #fdf4f5;
   color: #1f090d;
-  border: 2.5px solid #9e1429;
-  box-shadow: 6px 8px 0 rgba(20, 4, 8, 0.48);
+  border: 3px solid #9e1429;
+  box-shadow: 7px 9px 0 rgba(20, 4, 8, 0.50);
   z-index: 20;
   font-family: system-ui, -apple-system, sans-serif;
   animation: modalSlide 0.22s ease-out both;
@@ -143,22 +143,22 @@ html, body {
   justify-content: space-between;
   background: linear-gradient(90deg, #8f0f24, #d61f3c);
   color: #fff;
-  padding: 6px 10px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 15.5px;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
 
 .os-close-x {
-  width: 26px;
-  height: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  width: 32px;
+  height: 30px;
+  border: 1.5px solid rgba(255, 255, 255, 0.72);
   background: #420711;
   color: #fff;
   font-weight: 900;
-  font-size: 16px;
+  font-size: 20px;
   line-height: 1;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -170,12 +170,13 @@ html, body {
 }
 
 .os-modal-body {
-  padding: 12px 14px 14px;
+  padding: 14px 16px 16px;
 }
 
 .os-modal-msg {
-  margin: 0 0 12px;
-  font-size: 13px;
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 600;
   line-height: 1.35;
   color: #290c11;
 }
@@ -183,16 +184,16 @@ html, body {
 .os-modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
 }
 
 .os-btn {
-  font: 700 13px/1 system-ui, -apple-system, sans-serif;
-  padding: 9px 14px;
-  border-radius: 4px;
+  font: 800 15.5px/1 system-ui, -apple-system, sans-serif;
+  padding: 11px 18px;
+  border-radius: 5px;
   cursor: pointer;
-  border: 1.5px solid #6b1d29;
-  min-height: 36px;
+  border: 2px solid #6b1d29;
+  min-height: 44px;
 }
 
 .os-btn-trap {
@@ -214,20 +215,20 @@ html, body {
   background: #b5152e;
 }
 
-/* ---- Bottom Interactive Control Strip (y: 344..400) ---- */
+/* ---- Bottom Interactive Control Strip (y: 336..400) ---- */
 #control-strip {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 56px;
+  height: 64px;
   padding: 7px 12px;
   background: #1a080c;
   border-top: 2px solid #5c1623;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   z-index: 15;
 }
 
@@ -239,13 +240,13 @@ html, body {
 
 .ctrl-btn {
   position: relative;
-  height: 40px;
-  padding: 0 11px;
-  border-radius: 6px;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 7px;
   border: 2px solid #7d1c2d;
   background: #2e0d14;
   color: #fff0f2;
-  font: 700 13px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font: 800 15px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -285,15 +286,15 @@ html, body {
 }
 
 .btn-icon {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1;
 }
 
 .btn-key {
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 5px;
   border-radius: 3px;
-  background: rgba(255, 220, 226, 0.14);
+  background: rgba(255, 220, 226, 0.16);
   color: #f7cfd6;
   letter-spacing: 0.03em;
 }
@@ -301,17 +302,17 @@ html, body {
 .strip-hint {
   flex: 1;
   text-align: center;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #d496a1;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #e3a3ae;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .ctrl-brake {
-  min-width: 196px;
+  min-width: 214px;
   justify-content: center;
   border-color: #ff6b2b;
   background: #40130c;
@@ -346,13 +347,13 @@ html, body {
 /* ---- Start & Result Overlays ---- */
 .overlay-card-wrap {
   position: absolute;
-  inset: 0 0 56px 0;
+  inset: 0 0 64px 0;
   background: rgba(24, 5, 9, 0.78);
   backdrop-filter: blur(2px);
   display: grid;
   place-items: center;
   z-index: 30;
-  padding: 12px;
+  padding: 10px;
 }
 
 .overlay-card-wrap.hidden {
@@ -361,38 +362,38 @@ html, body {
 
 .overlay-card {
   width: 100%;
-  max-width: 530px;
+  max-width: 660px;
   background: #fcf2f3;
   color: #24090e;
   border: 3px solid #2b080e;
   box-shadow: 7px 7px 0 #8a0f24;
-  padding: 17px 22px 19px;
+  padding: 14px 22px 16px;
   text-align: center;
 }
 
 .card-badge {
   display: inline-block;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.11em;
-  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 4px 12px;
   background: #b8142f;
   color: #fff5f6;
   margin-bottom: 6px;
 }
 
 .card-title {
-  margin: 0 0 7px;
-  font-size: 33px;
-  line-height: 1.05;
+  margin: 0 0 6px;
+  font-size: 44px;
+  line-height: 1;
   letter-spacing: 0.06em;
   color: #1f060a;
 }
 
 .card-desc {
-  margin: 0 0 12px;
-  font-size: 13px;
-  line-height: 1.45;
+  margin: 0 0 11px;
+  font-size: 16px;
+  line-height: 1.35;
   color: #42171e;
 }
 
@@ -401,27 +402,27 @@ html, body {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px 12px;
-  margin-bottom: 14px;
-  font-size: 12px;
+  margin-bottom: 13px;
+  font-size: 14px;
   color: #360f16;
 }
 
 .card-keys span {
   background: #f2dfe2;
   border: 1.5px solid #cf9ea7;
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 4px;
 }
 
 .primary-cta {
-  font: 800 15px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font: 900 18px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   letter-spacing: 0.05em;
-  padding: 12px 24px;
-  min-height: 44px;
+  padding: 13px 28px;
+  min-height: 50px;
   background: #e01b39;
   color: #fff;
-  border: 2.5px solid #26070c;
-  box-shadow: 3px 3px 0 #26070c;
+  border: 3px solid #26070c;
+  box-shadow: 4px 4px 0 #26070c;
   cursor: pointer;
   transition: transform 0.07s ease, box-shadow 0.07s ease, background 0.1s ease;
 }
@@ -440,17 +441,17 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin: 4px 0 6px;
+  gap: 14px;
+  margin: 2px 0 4px;
 }
 
 .result-speaker {
-  font-size: 38px;
+  font-size: 46px;
   line-height: 1;
 }
 
 .result-vol {
-  font-size: 52px;
+  font-size: 64px;
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -466,8 +467,8 @@ html, body {
 }
 
 .result-quip {
-  margin: 0 0 12px;
-  font-size: 13px;
+  margin: 0 0 11px;
+  font-size: 15.5px;
   font-weight: 700;
   color: #4f1c25;
 }
@@ -475,57 +476,146 @@ html, body {
 .result-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 13px;
 }
 
 .stat-pill {
   background: #f2dfe2;
-  border: 1.5px solid #d4a3ac;
-  padding: 6px 4px;
-  border-radius: 4px;
+  border: 2px solid #d4a3ac;
+  padding: 7px 5px;
+  border-radius: 5px;
 }
 
 .stat-pill b {
   display: block;
-  font-size: 16px;
+  font-size: 20px;
   color: #24080d;
 }
 
 .stat-pill span {
-  font-size: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
   color: #692e38;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-/* ---- Optional Portrait-Phone Thumb Deck ----
-   Completely hidden on desktop & inside the 800x400 competition gallery iframe.
-   Appears ONLY on narrow portrait phones where extra space exists beneath #stage. */
+/* ---- Portrait-Phone Dedicated Layout (520x408 zoomed stage + huge thumb deck) ---- */
+body.portrait-phone #control-strip {
+  display: none;
+}
+
+body.portrait-phone #sticky-layer {
+  inset: 74px 0 0 0;
+}
+
+body.portrait-phone .overlay-card-wrap {
+  inset: 0;
+  padding: 10px;
+}
+
+body.portrait-phone .overlay-card {
+  max-width: 496px;
+  padding: 13px 16px 15px;
+}
+
+body.portrait-phone .card-badge {
+  font-size: 13.5px;
+  padding: 4px 11px;
+  margin-bottom: 5px;
+}
+
+body.portrait-phone .card-title {
+  font-size: 42px;
+  margin-bottom: 5px;
+}
+
+body.portrait-phone .card-desc {
+  font-size: 16.5px;
+  line-height: 1.32;
+  margin-bottom: 10px;
+}
+
+body.portrait-phone .card-keys {
+  font-size: 14px;
+  gap: 6px 8px;
+  margin-bottom: 11px;
+}
+
+body.portrait-phone .primary-cta {
+  font-size: 19px;
+  min-height: 52px;
+  padding: 12px 20px;
+  width: 100%;
+}
+
+body.portrait-phone .result-vol {
+  font-size: 64px;
+}
+
+body.portrait-phone .result-quip {
+  font-size: 16px;
+}
+
+body.portrait-phone .stat-pill b {
+  font-size: 21px;
+}
+
+body.portrait-phone .stat-pill span {
+  font-size: 11.5px;
+}
+
+body.portrait-phone .os-modal {
+  width: 444px;
+  left: 38px !important;
+  top: 98px !important;
+}
+
+body.portrait-phone .os-modal-bar {
+  font-size: 17px;
+  padding: 10px 14px;
+}
+
+body.portrait-phone .os-modal-msg {
+  font-size: 18px;
+}
+
+body.portrait-phone .os-btn {
+  font-size: 17px;
+  min-height: 50px;
+  padding: 12px 18px;
+}
+
+/* ---- Giant Thumb-Friendly Mobile Touch Deck ---- */
 #mobile-deck {
   display: none;
   width: 100%;
-  max-width: 440px;
-  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
-  gap: 10px;
+  max-width: 520px;
+  padding: 12px 12px calc(14px + env(safe-area-inset-bottom, 0px));
+  gap: 11px;
   flex-direction: column;
   flex-shrink: 0;
+}
+
+body.portrait-phone #mobile-deck {
+  display: flex;
 }
 
 .mobile-deck-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 11px;
 }
 
 .mobile-pad {
   position: relative;
-  height: 58px;
-  border-radius: 10px;
-  border: 2px solid #8a1d30;
+  height: 92px;
+  border-radius: 12px;
+  border: 2.5px solid #8a1d30;
   background: #2b0b12;
   color: #fff0f2;
-  font: 800 15px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font: 900 20px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   letter-spacing: 0.04em;
   display: flex;
   align-items: center;
@@ -561,17 +651,12 @@ html, body {
 
 .mobile-pad-brake {
   width: 100%;
-  height: 50px;
+  height: 70px;
+  font-size: 18px;
   border-color: #ff6b2b;
   background: #42140c;
 }
 
 .mobile-pad-brake.active {
   border-color: #ffa066;
-}
-
-@media (max-width: 760px) and (min-height: 460px) {
-  #mobile-deck {
-    display: flex;
-  }
 }
