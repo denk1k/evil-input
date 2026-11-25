@@ -1,46 +1,94 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>my evil input</title>
-<style>
-  /* Everything you make goes inside #stage: exactly 800 × 400 pixels. The gallery shows
-     this box (shrunk to fit), so anything outside it won't be seen. */
-  html, body { margin: 0; background: #292b47; color: #eceae3; font: 16px/1.5 ui-monospace, Menlo, Consolas, monospace; }
-  #stage {
-    width: 800px; height: 400px; overflow: hidden; position: relative;
-    display: grid; place-items: center; text-align: center;
-    background: #23243d;
-  }
-
-  /* ---- the example below: delete it and build your own ---- */
-  .vol { font-size: 64px; margin: 0; }
-  button { font: inherit; color: inherit; background: #3f4168; border: 0; border-radius: 6px; padding: .6rem 1.2rem; cursor: pointer; }
-  .hint { color: #8d8aa6; font-size: 14px; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>THE DINO — Evil Volume Control</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div id="stage">
-  <!-- example evil input: volume you have to pump up by hand, and it leaks back down -->
-  <div>
-    <p class="vol"><span id="vol">0</span>%</p>
-    <button id="pump">pump volume</button>
-    <p class="hint">it leaks. keep pumping.</p>
+  <div id="stage-shell">
+    <div id="stage">
+      <canvas id="game" width="800" height="400"></canvas>
+
+      <!-- Floating Neighbor Sticky Notes -->
+      <div id="sticky-layer" aria-hidden="true"></div>
+
+      <!-- Fake OS Hearing Safety Modal -->
+      <div id="hearing-modal" class="os-modal hidden" role="dialog" aria-label="Hearing safety warning">
+        <div class="os-modal-bar">
+          <span class="os-modal-title">⚠ System Audio Guard</span>
+          <button type="button" class="os-close-x" id="modal-close-x" aria-label="Dismiss">×</button>
+        </div>
+        <div class="os-modal-body">
+          <p class="os-modal-msg">Listening at high volume may damage your hearing (and annoy Apt 4B).</p>
+          <div class="os-modal-actions">
+            <button type="button" class="os-btn os-btn-trap" id="modal-lower-btn">Lower Volume</button>
+            <button type="button" class="os-btn os-btn-primary" id="modal-dismiss-btn">Dismiss</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Interactive Control Strip (touch + keyboard friendly, inside 800x400 #stage) -->
+      <div id="control-strip">
+        <div class="touch-group">
+          <button type="button" id="btn-jump" class="ctrl-btn ctrl-jump" aria-label="Jump">
+            <span class="btn-icon">▲</span>
+            <span class="btn-label">JUMP</span>
+            <span class="btn-key">SPACE</span>
+          </button>
+          <button type="button" id="btn-duck" class="ctrl-btn ctrl-duck" aria-label="Duck or Fast-fall slam">
+            <span class="btn-icon">▼</span>
+            <span class="btn-label">DUCK / SLAM</span>
+            <span class="btn-key">↓</span>
+          </button>
+        </div>
+
+        <div class="strip-hint" id="strip-hint">DON'T DIE (YOU CAN'T) · HIT 100% OR HOLD BRAKE TO LOCK</div>
+
+        <button type="button" id="btn-brake" class="ctrl-btn ctrl-brake" aria-label="Hold to brake and lock current volume">
+          <span class="brake-fill" id="brake-fill"></span>
+          <span class="brake-content">
+            <span class="btn-label">HOLD: BRAKE &amp; SET</span>
+            <span class="btn-key">B</span>
+          </span>
+        </button>
+      </div>
+
+      <!-- Start Overlay -->
+      <div id="start-overlay" class="overlay-card-wrap">
+        <div class="overlay-card start-card">
+          <div class="card-badge">EVIL VOLUME CONTROL</div>
+          <h1 class="card-title">THE DINO</h1>
+          <p class="card-desc">
+            Run to raise volume from <strong>0% → 100%</strong>. You <strong>cannot die</strong>—cacti, pickpocket birds, rockets, mute drones &amp; angry neighbors steal, spill, or reverse your sound.
+          </p>
+          <div class="card-keys">
+            <span><b>SPACE / ▲</b> Jump</span>
+            <span><b>↓ / ▼</b> Duck &amp; Slam</span>
+            <span><b>HOLD B</b> Brake &amp; Set</span>
+          </div>
+          <button type="button" id="btn-start" class="primary-cta">START RUNNING (0%)</button>
+        </div>
+      </div>
+
+      <!-- Locked / 100% Victory Overlay -->
+      <div id="result-overlay" class="overlay-card-wrap hidden">
+        <div class="overlay-card result-card">
+          <div class="card-badge" id="result-badge">VOLUME LOCKED</div>
+          <div class="result-vol-row">
+            <span class="result-speaker" id="result-speaker">🔊</span>
+            <span class="result-vol" id="result-vol">100%</span>
+          </div>
+          <p class="result-quip" id="result-quip">Maximum ear damage achieved.</p>
+          <div class="result-stats" id="result-stats"></div>
+          <button type="button" id="btn-retry" class="primary-cta">ADJUST VOLUME AGAIN</button>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
-<script>
-  // the example: delete this too
-  let volume = 0;
-  const out = document.getElementById('vol');
-  document.getElementById('pump').addEventListener('click', () => {
-    volume = Math.min(100, volume + 7);
-    out.textContent = Math.round(volume);
-  });
-  setInterval(() => {
-    volume = Math.max(0, volume - 1);
-    out.textContent = Math.round(volume);
-  }, 120);
-</script>
+
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>

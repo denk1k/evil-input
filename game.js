@@ -1,0 +1,2523 @@
+/* Decibel Dino — Fast-paced immortal Chrome Dino evil volume control.
+   Runs cleanly inside the exact 800x400 #stage with responsive small-screen scaling. */
+
+(function () {
+  'use strict';
+
+  const STAGE_W = 800;
+  const STAGE_H = 400;
+  const HUD_H = 58;
+  const CEIL_Y = 74;
+  const FLOOR_Y = 330;
+  const BASE_DINO_X = 132;
+  const MIN_VOL = -15;
+  const MAX_VOL = 100;
+  const BRAKE_DURATION = 1.5;
+
+  // ---- Pixel Art Sprite Matrices (1 = primary ink, 2 = eye/cutout, 3 = accent) ----
+  const DINO_STAND_A = [
+    '        11111111  ',
+    '       1111111111 ',
+    '       1121111111 ',
+    '       1111111111 ',
+    '       1111111111 ',
+    '       11111      ',
+    '       11111111   ',
+    '1     111111      ',
+    '1    111111111    ',
+    '11  1111111111    ',
+    '111111111111  1   ',
+    '111111111111      ',
+    ' 11111111111      ',
+    '  111111111       ',
+    '   1111111        ',
+    '    111 11        ',
+    '    11   11       ',
+    '    11    111     ',
+    '    111           '
+  ];
+
+  const DINO_STAND_B = [
+    '        11111111  ',
+    '       1111111111 ',
+    '       1121111111 ',
+    '       1111111111 ',
+    '       1111111111 ',
+    '       11111      ',
+    '       11111111   ',
+    '1     111111      ',
+    '1    111111111    ',
+    '11  1111111111    ',
+    '111111111111  1   ',
+    '111111111111      ',
+    ' 11111111111      ',
+    '  111111111       ',
+    '   1111111        ',
+    '    111 11        ',
+    '     11  11       ',
+    '     111  11      ',
+    '          111     '
+  ];
+
+  const DINO_DUCK_A = [
+    '              11111111  ',
+    '1            1111111111 ',
+    '11  1111111111112111111 ',
+    '11111111111111111111111 ',
+    ' 1111111111111111111111 ',
+    '  11111111111111111     ',
+    '   1111111111111111111  ',
+    '     11111111111        ',
+    '      111   11          ',
+    '      11     111        ',
+    '      111               '
+  ];
+
+  const DINO_DUCK_B = [
+    '              11111111  ',
+    '1            1111111111 ',
+    '11  1111111111112111111 ',
+    '11111111111111111111111 ',
+    ' 1111111111111111111111 ',
+    '  11111111111111111     ',
+    '   1111111111111111111  ',
+    '     11111111111        ',
+    '      111   11          ',
+    '       111  11          ',
+    '            111         '
+  ];
+
+  const BIRD_A = [
+    '      11          ',
+    '     111          ',
+    '    11111         ',
+    '  11111111        ',
+    '111121111111111   ',
+    '   111111111111111',
+    '     11111111111  ',
+    '       111111     ',
+    '        111       ',
+    '         1        '
+  ];
+
+  const BIRD_B = [
+    '                  ',
+    '                  ',
+    '  11111           ',
+    '111121111111111   ',
+    '   111111111111111',
+    '     11111111111  ',
+    '      111111      ',
+    '     11111        ',
+    '    1111          ',
+    '    11            '
+  ];
+
+  const NEIGHBOR_QUIPS = [
+    'KEEP IT DOWN!',
+    "IT'S 11 PM!",
+    'CALLING LANDLORD!',
+    'MY BABY IS SLEEPING!',
+    'TURN THAT DOWN!'
+  ];
+
+  // ---- DOM References ----
+  const stageShell = document.getElementById('stage-shell');
+  const stageEl = document.getElementById('stage');
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const stickyLayer = document.getElementById('sticky-layer');
+  const hearingModal = document.getElementById('hearing-modal');
+  const modalCloseX = document.getElementById('modal-close-x');
+  const modalDismissBtn = document.getElementById('modal-dismiss-btn');
+  const modalLowerBtn = document.getElementById('modal-lower-btn');
+
+  const btnJump = document.getElementById('btn-jump');
+  const btnDuck = document.getElementById('btn-duck');
+  const btnBrake = document.getElementById('btn-brake');
+  const brakeFillEl = document.getElementById('brake-fill');
+  const stripHintEl = document.getElementById('strip-hint');
+
+  const startOverlay = document.getElementById('start-overlay');
+  const btnStart = document.getElementById('btn-start');
+  const resultOverlay = document.getElementById('result-overlay');
+  const resultBadge = document.getElementById('result-badge');
+  const resultSpeaker = document.getElementById('result-speaker');
+  const resultVol = document.getElementById('result-vol');
+  const resultQuip = document.getElementById('result-quip');
+  const resultStats = document.getElementById('result-stats');
+  const btnRetry = document.getElementById('btn-retry');
+
+  const audio = new window.AudioEngine();
+
+  // ---- Responsive Small-Screen Stage Scaling ----
+  function updateStageScale() {
+    const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const scale = Math.min(1, vw / STAGE_W, vh / STAGE_H);
+    if (scale < 0.999) {
+      stageEl.style.transform = `scale(${scale})`;
+      stageShell.style.width = `${Math.floor(STAGE_W * scale)}px`;
+      stageShell.style.height = `${Math.floor(STAGE_H * scale)}px`;
+    } else {
+      stageEl.style.transform = 'none';
+      stageShell.style.width = `${STAGE_W}px`;
+      stageShell.style.height = `${STAGE_H}px`;
+    }
+  }
+
+  window.addEventListener('resize', updateStageScale);
+  window.addEventListener('orientationchange', updateStageScale);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateStageScale);
+  }
+  updateStageScale();
+
+  // ---- Helper Math ----
+  function clamp(v, lo, hi) {
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function rand(lo, hi) {
+    return lo + Math.random() * (hi - lo);
+  }
+
+  function aabb(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  // ---- Input State ----
+  const input = {
+    jumpHeld: false,
+    duckHeld: false,
+    brakeHeld: false,
+    jumpBuffer: 0,
+    pointerStartY: null,
+    pointerId: null
+  };
+
+  // ---- Game State ----
+  let state = null;
+
+  function createInitialState(mode) {
+    return {
+      mode: mode || 'start', // 'start' | 'playing' | 'finished'
+      elapsed: 0,
+      speed: 395,
+      scrollX: 0,
+      volume: 0,
+      visualVolume: 0,
+      hudFlash: 0,
+      hudFlashColor: '#ff4757',
+      hudShake: 0,
+
+      // Stats
+      hitsTaken: 0,
+      volumeLost: 0,
+      volumeRecovered: 0,
+      rocketsEaten: 0,
+
+      // Dino
+      dino: {
+        x: BASE_DINO_X,
+        y: FLOOR_Y,
+        vy: 0,
+        grounded: true,
+        ducking: false,
+        slamming: false,
+        coyote: 0,
+        runAnim: 0,
+        invuln: 0,
+        hurtFace: 0,
+        afterimages: []
+      },
+
+      // World modifiers & debuffs
+      gravityDir: 1, // 1 = floor, -1 = ceiling
+      gravityFlipTimer: 0,
+      gravityFlipReturnWarned: false,
+      nightTimer: 0,
+      nightAlpha: 0,
+
+      foamCount: 0,
+      foamTimer: 0,
+      shushTimer: 0,
+      rewindTimer: 0,
+      muffleTimer: 0,
+      latchedDrone: null, // { timer: 2.8, pulse: 0 }
+
+      // Brake to lock
+      brakeProgress: 0,
+      braking: false,
+
+      // Screen juice
+      screenShake: 0,
+      banner: null, // { text, color, timer, maxTimer }
+
+      // Director milestones
+      milestones: {
+        night1: false,
+        modal1: false,
+        rocketIntro: false,
+        gravity1: false,
+        speaker1: false,
+        overtime: false,
+        modal2: false,
+        gravity2: false
+      },
+      spawnCooldown: 0.75,
+      rocketCooldown: 999,
+      overtimeStarCooldown: 2.0,
+      overtimeSpeakerCooldown: 9.0,
+      modalAutoClose: 0,
+
+      // Entities
+      obstacles: [],
+      pellets: [],
+      rockets: [],
+      speaker: null, // Giant Speaker Cannon boss-let
+      speakerWaves: [],
+      stars: [],
+      particles: [],
+      floatingTexts: [],
+      hudChunks: [], // Animated volume chunks flying between HUD and birds
+      clouds: [
+        { x: 140, y: 112, s: 1.0 },
+        { x: 420, y: 94, s: 0.85 },
+        { x: 670, y: 126, s: 1.1 }
+      ],
+      groundDots: Array.from({ length: 34 }, (_, i) => ({
+        x: i * 26 + rand(0, 18),
+        y: rand(3, 11),
+        w: rand(2, 6)
+      })),
+      bgStars: Array.from({ length: 24 }, () => ({
+        x: rand(20, STAGE_W - 20),
+        y: rand(HUD_H + 14, FLOOR_Y - 70),
+        r: Math.random() > 0.7 ? 2 : 1,
+        tw: rand(0, Math.PI * 2)
+      })),
+
+      // Result
+      finishReason: null,
+      finishConfetti: []
+    };
+  }
+
+  state = createInitialState('start');
+
+  // ---- Surface Coordinate Helpers ----
+  function surfaceY() {
+    return state.gravityDir === 1 ? FLOOR_Y : CEIL_Y;
+  }
+
+  function dinoDims() {
+    if (state.dino.ducking && state.dino.grounded) {
+      return { w: 50, h: 26 };
+    }
+    return { w: 38, h: 42 };
+  }
+
+  function dinoHitbox() {
+    const d = state.dino;
+    const dim = dinoDims();
+    const padX = 5;
+    const padY = 4;
+    if (state.gravityDir === 1) {
+      return {
+        x: d.x + padX,
+        y: d.y - dim.h + padY,
+        w: dim.w - padX * 2,
+        h: dim.h - padY * 2
+      };
+    }
+    return {
+      x: d.x + padX,
+      y: d.y + padY,
+      w: dim.w - padX * 2,
+      h: dim.h - padY * 2
+    };
+  }
+
+  function dinoCenterY() {
+    const hb = dinoHitbox();
+    return hb.y + hb.h * 0.5;
+  }
+
+  // ---- UI / Overlay Helpers ----
+  function clearDomHazards() {
+    stickyLayer.innerHTML = '';
+    hearingModal.classList.add('hidden');
+    state.modalAutoClose = 0;
+  }
+
+  function showHearingModal() {
+    hearingModal.classList.remove('hidden');
+    // Slight position shuffle so second modal feels cheeky
+    const topPos = state.elapsed > 30 ? 84 : 74;
+    const leftPos = state.elapsed > 30 ? 300 : 340;
+    hearingModal.style.top = `${topPos}px`;
+    hearingModal.style.left = `${leftPos}px`;
+    state.modalAutoClose = 6.5;
+    audio.playPopup();
+  }
+
+  function hideHearingModal() {
+    hearingModal.classList.add('hidden');
+    state.modalAutoClose = 0;
+  }
+
+  function spawnStickyNote(penalty) {
+    const note = document.createElement('div');
+    note.className = 'sticky-note';
+    const quip = NEIGHBOR_QUIPS[Math.floor(Math.random() * NEIGHBOR_QUIPS.length)];
+    note.innerHTML = `<span class="sticky-title">APT 4B COMPLAINT (-${penalty}%)</span>${quip}`;
+    const left = Math.floor(rand(275, 535));
+    const top = Math.floor(rand(22, 130));
+    const rot = rand(-7, 7).toFixed(1);
+    note.style.left = `${left}px`;
+    note.style.top = `${top}px`;
+    note.style.transform = `rotate(${rot}deg)`;
+    stickyLayer.appendChild(note);
+
+    setTimeout(() => {
+      note.classList.add('peel');
+    }, 2200);
+    setTimeout(() => {
+      if (note.parentNode) note.parentNode.removeChild(note);
+    }, 2600);
+  }
+
+  function showBanner(text, color, duration) {
+    state.banner = {
+      text,
+      color: color || '#ff4757',
+      timer: duration || 1.75,
+      maxTimer: duration || 1.75
+    };
+  }
+
+  function addFloatingText(x, y, text, color, scale) {
+    state.floatingTexts.push({
+      x,
+      y,
+      text,
+      color: color || '#ff4757',
+      scale: scale || 1,
+      vy: -48,
+      life: 1.05,
+      maxLife: 1.05
+    });
+  }
+
+  function addBurst(x, y, color, count, speedScale) {
+    const n = count || 10;
+    const sp = speedScale || 1;
+    for (let i = 0; i < n; i++) {
+      const ang = rand(0, Math.PI * 2);
+      const spd = rand(65, 240) * sp;
+      state.particles.push({
+        x,
+        y,
+        vx: Math.cos(ang) * spd,
+        vy: Math.sin(ang) * spd - 40,
+        size: rand(3, 7),
+        color,
+        life: rand(0.32, 0.75),
+        maxLife: 0.75,
+        gravity: 480
+      });
+    }
+  }
+
+  function changeVolume(delta, kind) {
+    const prev = state.volume;
+    state.volume = clamp(state.volume + delta, MIN_VOL, MAX_VOL);
+    const actual = state.volume - prev;
+
+    if (delta < 0) {
+      state.volumeLost += Math.abs(delta);
+      state.hudFlash = 0.28;
+      state.hudFlashColor = '#ff4757';
+      state.hudShake = 7;
+    } else if (delta > 0 && kind === 'recover') {
+      state.volumeRecovered += Math.abs(actual);
+      state.hudFlash = 0.22;
+      state.hudFlashColor = '#2ed573';
+    }
+  }
+
+  // ---- Start & Finish Flow ----
+  function startRun() {
+    audio.init();
+    clearDomHazards();
+    state = createInitialState('playing');
+    input.jumpHeld = false;
+    input.duckHeld = false;
+    input.brakeHeld = false;
+    input.jumpBuffer = 0;
+    startOverlay.classList.add('hidden');
+    resultOverlay.classList.add('hidden');
+    brakeFillEl.style.width = '0%';
+    stripHintEl.textContent = 'DON\'T DIE (YOU CAN\'T) · HIT 100% OR HOLD BRAKE TO LOCK';
+    showBanner('RUN TO RAISE VOLUME!', '#2f55a4', 1.5);
+  }
+
+  function finishRun(reason) {
+    if (state.mode === 'finished') return;
+    state.mode = 'finished';
+    state.finishReason = reason;
+    state.braking = false;
+    clearDomHazards();
+
+    const finalVol = reason === '100' ? 100 : Math.round(state.volume);
+    state.volume = finalVol;
+    state.visualVolume = finalVol;
+
+    if (reason === '100') {
+      audio.playVictory100();
+      // Spawn victory confetti inside canvas
+      const palette = ['#ff4757', '#ffa502', '#2ed573', '#1e90ff', '#a55eea', '#ffdd59'];
+      for (let i = 0; i < 85; i++) {
+        state.finishConfetti.push({
+          x: rand(60, STAGE_W - 60),
+          y: rand(40, 180),
+          vx: rand(-220, 220),
+          vy: rand(-280, -40),
+          w: rand(5, 10),
+          h: rand(4, 7),
+          rot: rand(0, Math.PI * 2),
+          vrot: rand(-8, 8),
+          color: palette[i % palette.length]
+        });
+      }
+    } else {
+      audio.playVolumeLocked(finalVol);
+    }
+
+    // Populate Result Overlay
+    resultVol.classList.remove('sub-mute', 'max-vol');
+    if (reason === '100') {
+      resultBadge.textContent = '100% VOLUME ACHIEVED';
+      resultSpeaker.textContent = '🔊';
+      resultVol.textContent = '100%';
+      resultVol.classList.add('max-vol');
+      resultQuip.textContent = state.elapsed <= 35
+        ? 'Blazing run! Your neighbors have already filed a noise complaint.'
+        : 'Survived overtime chaos to reach glorious maximum decibels.';
+    } else if (finalVol < 0) {
+      resultBadge.textContent = 'SUB-MUTE LOCKED';
+      resultSpeaker.textContent = '🕳️';
+      resultVol.textContent = `${finalVol}%`;
+      resultVol.classList.add('sub-mute');
+      resultQuip.textContent = 'Your speakers are now actively vacuuming sound out of the room.';
+    } else if (finalVol === 0) {
+      resultBadge.textContent = 'MUTE LOCKED';
+      resultSpeaker.textContent = '🔇';
+      resultVol.textContent = '0%';
+      resultQuip.textContent = 'All that sprinting just to keep it muted.';
+    } else {
+      resultBadge.textContent = 'VOLUME LOCKED BY BRAKE';
+      resultSpeaker.textContent = finalVol >= 66 ? '🔊' : finalVol >= 30 ? '🔉' : '🔈';
+      resultVol.textContent = `${finalVol}%`;
+      resultQuip.textContent = state.rocketsEaten > 0
+        ? `Screeched to a halt! (You ate ${state.rocketsEaten} rocket${state.rocketsEaten === 1 ? '' : 's'} for this.)`
+        : `Screeched to a halt and locked ${finalVol}% right before disaster.`;
+    }
+
+    resultStats.innerHTML = `
+      <div class="stat-pill"><b>${state.elapsed.toFixed(1)}s</b><span>Time</span></div>
+      <div class="stat-pill"><b>${state.hitsTaken}</b><span>Hits Tanked</span></div>
+      <div class="stat-pill"><b>-${Math.round(state.volumeLost)}%</b><span>Vol Lost</span></div>
+      <div class="stat-pill"><b>+${Math.round(state.volumeRecovered)}%</b><span>Reclaimed</span></div>
+    `;
+
+    resultOverlay.classList.remove('hidden');
+  }
+
+  // ---- Input Handlers ----
+  function triggerJumpDown() {
+    audio.init();
+    if (state.mode === 'start') {
+      startRun();
+      return;
+    }
+    if (state.mode !== 'playing') return;
+    input.jumpHeld = true;
+    input.jumpBuffer = 0.095;
+    btnJump.classList.add('active');
+  }
+
+  function triggerJumpUp() {
+    input.jumpHeld = false;
+    btnJump.classList.remove('active');
+    if (state.mode !== 'playing') return;
+    // Variable jump height cut when releasing early while moving away from surface
+    const d = state.dino;
+    if (!d.grounded && d.vy * state.gravityDir < -180) {
+      d.vy *= 0.54;
+    }
+  }
+
+  function triggerDuckDown() {
+    audio.init();
+    if (state.mode !== 'playing') return;
+    input.duckHeld = true;
+    btnDuck.classList.add('active');
+    const d = state.dino;
+    if (!d.grounded) {
+      d.slamming = true;
+      d.vy = 960 * state.gravityDir;
+    } else {
+      d.ducking = true;
+    }
+  }
+
+  function triggerDuckUp() {
+    input.duckHeld = false;
+    state.dino.ducking = false;
+    btnDuck.classList.remove('active');
+  }
+
+  function triggerBrakeDown() {
+    audio.init();
+    if (state.mode !== 'playing') return;
+    input.brakeHeld = true;
+    btnBrake.classList.add('active');
+  }
+
+  function triggerBrakeUp() {
+    input.brakeHeld = false;
+    btnBrake.classList.remove('active');
+  }
+
+  // Keyboard bindings
+  window.addEventListener('keydown', (e) => {
+    if (['Space', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyS', 'KeyB'].includes(e.code)) {
+      e.preventDefault();
+    }
+    if (e.repeat) return;
+
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+      if (state.mode === 'finished') {
+        startRun();
+        return;
+      }
+      triggerJumpDown();
+    } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      triggerDuckDown();
+    } else if (e.code === 'KeyB') {
+      triggerBrakeDown();
+    } else if (e.code === 'Enter') {
+      if (state.mode === 'start' || state.mode === 'finished') {
+        startRun();
+      }
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+      triggerJumpUp();
+    } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      triggerDuckUp();
+    } else if (e.code === 'KeyB') {
+      triggerBrakeUp();
+    }
+  });
+
+  // On-stage touch/mouse control buttons
+  function bindHoldButton(el, onDown, onUp) {
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (el.setPointerCapture) {
+        try { el.setPointerCapture(e.pointerId); } catch (_err) {}
+      }
+      onDown();
+    });
+    const end = (e) => {
+      e.preventDefault();
+      onUp();
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('lostpointercapture', onUp);
+  }
+
+  bindHoldButton(btnJump, triggerJumpDown, triggerJumpUp);
+  bindHoldButton(btnDuck, triggerDuckDown, triggerDuckUp);
+  bindHoldButton(btnBrake, triggerBrakeDown, triggerBrakeUp);
+
+  // Direct canvas tap = jump, quick swipe down = duck/slam
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    audio.init();
+    if (state.mode === 'start') {
+      startRun();
+      return;
+    }
+    if (state.mode !== 'playing') return;
+    input.pointerStartY = e.clientY;
+    input.pointerId = e.pointerId;
+    triggerJumpDown();
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (input.pointerId !== e.pointerId || input.pointerStartY === null) return;
+    if (e.clientY - input.pointerStartY > 24) {
+      triggerJumpUp();
+      triggerDuckDown();
+    }
+  });
+
+  function clearCanvasPointer(e) {
+    if (input.pointerId !== e.pointerId) return;
+    input.pointerId = null;
+    input.pointerStartY = null;
+    triggerJumpUp();
+    if (input.duckHeld) triggerDuckUp();
+  }
+  canvas.addEventListener('pointerup', clearCanvasPointer);
+  canvas.addEventListener('pointercancel', clearCanvasPointer);
+
+  // Modal & CTA buttons
+  btnStart.addEventListener('click', startRun);
+  btnRetry.addEventListener('click', startRun);
+
+  function dismissHearingModal(e) {
+    e.stopPropagation();
+    audio.init();
+    hideHearingModal();
+    audio.playPopup();
+    addFloatingText(460, 128, 'SAFETY IGNORED!', '#2763d9', 1.0);
+  }
+  modalDismissBtn.addEventListener('click', dismissHearingModal);
+  modalCloseX.addEventListener('click', dismissHearingModal);
+
+  modalLowerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    audio.init();
+    hideHearingModal();
+    changeVolume(-25, 'damage');
+    state.hitsTaken += 1;
+    audio.playShush();
+    addFloatingText(460, 128, 'GOOD CITIZEN! -25%', '#ff4757', 1.15);
+  });
+
+  // ---- Obstacle & Entity Spawners ----
+  function spawnCactus() {
+    const variantRoll = Math.random();
+    let kind = 'small';
+    let w = 22;
+    let h = 38;
+    if (variantRoll > 0.66) {
+      kind = 'cluster';
+      w = 44;
+      h = 40;
+    } else if (variantRoll > 0.32) {
+      kind = 'tall';
+      w = 26;
+      h = 54;
+    }
+    const dir = state.gravityDir;
+    const y = dir === 1 ? FLOOR_Y - h : CEIL_Y;
+    state.obstacles.push({
+      type: 'cactus',
+      variant: kind,
+      x: STAGE_W + 24,
+      y,
+      w,
+      h,
+      dir,
+      hit: false
+    });
+  }
+
+  function spawnBird() {
+    const dir = state.gravityDir;
+    // Alternate between duckable head-height and jump-height
+    const highLane = Math.random() > 0.52;
+    const offset = highLane ? 82 : 46;
+    const h = 24;
+    const y = dir === 1 ? FLOOR_Y - offset : CEIL_Y + offset - h;
+    state.obstacles.push({
+      type: 'bird',
+      state: 'incoming', // 'incoming' | 'fleeing' | 'escaping' | 'bonked'
+      x: STAGE_W + 30,
+      y,
+      w: 38,
+      h,
+      dir,
+      flap: 0,
+      fleeTimer: 0,
+      reclaimGrace: 0,
+      stolenAmount: 12,
+      vx: 0,
+      vy: 0
+    });
+  }
+
+  function spawnFoamWall() {
+    const dir = state.gravityDir;
+    const w = 34;
+    const h = 48;
+    const y = dir === 1 ? FLOOR_Y - h : CEIL_Y;
+    state.obstacles.push({
+      type: 'foam',
+      x: STAGE_W + 24,
+      y,
+      w,
+      h,
+      dir,
+      hit: false
+    });
+  }
+
+  function spawnNeighbor() {
+    const dir = state.gravityDir;
+    const low = Math.random() > 0.45;
+    const offset = low ? 52 : 90;
+    const h = 34;
+    const y = dir === 1 ? FLOOR_Y - offset : CEIL_Y + offset - h;
+    state.obstacles.push({
+      type: 'neighbor',
+      x: STAGE_W + 32,
+      y,
+      baseY: y,
+      w: 38,
+      h,
+      phase: rand(0, Math.PI * 2),
+      hit: false
+    });
+  }
+
+  function spawnMuteDrone() {
+    const dir = state.gravityDir;
+    const offset = rand(48, 88);
+    const h = 30;
+    const y = dir === 1 ? FLOOR_Y - offset : CEIL_Y + offset - h;
+    state.obstacles.push({
+      type: 'drone',
+      x: STAGE_W + 30,
+      y,
+      baseY: y,
+      w: 36,
+      h,
+      phase: rand(0, Math.PI * 2),
+      hit: false
+    });
+  }
+
+  function spawnRewindTape() {
+    const dir = state.gravityDir;
+    const w = 36;
+    const h = 26;
+    const y = dir === 1 ? FLOOR_Y - h - 4 : CEIL_Y + 4;
+    state.obstacles.push({
+      type: 'rewind',
+      x: STAGE_W + 26,
+      y,
+      baseY: y,
+      w,
+      h,
+      dir,
+      spin: 0,
+      hit: false
+    });
+  }
+
+  function spawnGravityGate() {
+    state.obstacles.push({
+      type: 'gate',
+      x: STAGE_W + 40,
+      y: CEIL_Y,
+      w: 26,
+      h: FLOOR_Y - CEIL_Y,
+      triggered: false,
+      pulse: 0
+    });
+  }
+
+  function spawnRocket(targetOffsetY) {
+    const targetY = clamp(dinoCenterY() + (targetOffsetY || 0), CEIL_Y + 20, FLOOR_Y - 20);
+    state.rockets.push({
+      phase: 'tracking', // 'tracking' -> 'locked' -> 'firing'
+      timer: 0.46,
+      beepTimer: 0.20,
+      x: STAGE_W + 24,
+      y: targetY,
+      w: 44,
+      h: 18,
+      vx: -870,
+      hit: false
+    });
+    audio.playRadarBeep(false);
+  }
+
+  function spawnSpeakerCannon() {
+    state.speaker = {
+      x: STAGE_W + 58,
+      targetX: STAGE_W - 64,
+      timer: 5.4,
+      fireTimer: 0.85,
+      nextAttack: 'bass', // alternates 'bass' and 'treble'
+      exiting: false
+    };
+    showBanner('🔊 BASS CLIPPING! JUMP BASS · DUCK TREBLE', '#ff6b35', 2.0);
+  }
+
+  function spawnOverdriveStar() {
+    const dir = state.gravityDir;
+    const y = dir === 1 ? FLOOR_Y - 122 : CEIL_Y + 122;
+    state.stars.push({
+      x: STAGE_W + 24,
+      y,
+      r: 16,
+      spin: 0,
+      collected: false
+    });
+  }
+
+  function spawnVolumePellets(originX, originY) {
+    const dir = state.gravityDir;
+    for (let i = 0; i < 4; i++) {
+      state.pellets.push({
+        x: originX + rand(8, 22),
+        y: originY,
+        vx: rand(145, 290),
+        vy: rand(-275, -420) * dir,
+        r: 7,
+        life: 2.35,
+        pickupDelay: 0.18,
+        bounces: 0
+      });
+    }
+  }
+
+  // ---- Time-Driven Event Director ----
+  function getPhaseLabel(t) {
+    if (state.gravityFlipTimer > 0) return 'GRAVITY FLIP';
+    if (state.speaker) return 'BASS CLIPPING';
+    if (t >= 35) return 'OVERTIME';
+    if (t >= 29) return 'FINAL SPRINT';
+    if (t >= 15) return 'ROCKET LOCK';
+    if (t >= 10) return 'NOISE ALERT';
+    if (t >= 5) return 'PICKPOCKETS';
+    return 'WARMUP';
+  }
+
+  function updateDirector(dt) {
+    const t = state.elapsed;
+
+    // Fast escalating run speed: 395 -> 620 px/s
+    state.speed = clamp(395 + t * 7.2, 395, 625);
+
+    // ---- Scripted Set-Piece Milestones ----
+    if (!state.milestones.night1 && t >= 7.5) {
+      state.milestones.night1 = true;
+      state.nightTimer = 3.2;
+      showBanner('☾ NIGHT MODE FLICKER', '#7b8cde', 1.4);
+    }
+
+    if (!state.milestones.modal1 && t >= 12.0) {
+      state.milestones.modal1 = true;
+      showHearingModal();
+    }
+
+    if (!state.milestones.rocketIntro && t >= 15.0) {
+      state.milestones.rocketIntro = true;
+      showBanner('🚀 ROCKETS ONLINE!', '#ff3838', 1.7);
+      spawnRocket(0);
+      state.rocketCooldown = 3.3;
+    }
+
+    if (!state.milestones.gravity1 && t >= 21.0) {
+      state.milestones.gravity1 = true;
+      spawnGravityGate();
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.15);
+    }
+
+    if (!state.milestones.speaker1 && t >= 26.3 && state.gravityFlipTimer <= 0) {
+      state.milestones.speaker1 = true;
+      spawnSpeakerCannon();
+    }
+
+    if (!state.milestones.overtime && t >= 35.0) {
+      state.milestones.overtime = true;
+      showBanner('★ OVERTIME! GRAB +20% STARS!', '#f5a623', 2.2);
+      state.overtimeStarCooldown = 1.0;
+      state.overtimeSpeakerCooldown = 8.5;
+    }
+
+    if (!state.milestones.modal2 && t >= 38.5 && hearingModal.classList.contains('hidden')) {
+      state.milestones.modal2 = true;
+      showHearingModal();
+    }
+
+    if (!state.milestones.gravity2 && t >= 47.0 && !state.speaker) {
+      state.milestones.gravity2 = true;
+      spawnGravityGate();
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.15);
+    }
+
+    // ---- Rocket Spawner (0:15+) ----
+    if (t >= 15.0 && !state.speaker) {
+      state.rocketCooldown -= dt;
+      if (state.rocketCooldown <= 0) {
+        spawnRocket(0);
+        // Overtime occasional staggered double-rocket!
+        if (t >= 35.0 && Math.random() > 0.48) {
+          setTimeout(() => {
+            if (state.mode === 'playing' && !state.speaker) {
+              spawnRocket(state.gravityDir === 1 ? -46 : 46);
+            }
+          }, 560);
+        }
+        const baseInterval = t >= 35 ? 2.8 : t >= 29 ? 2.5 : 3.4;
+        state.rocketCooldown = rand(baseInterval - 0.5, baseInterval + 0.7);
+      }
+    }
+
+    // ---- Overtime Comeback Stars & Returning Speaker ----
+    if (t >= 35.0) {
+      state.overtimeStarCooldown -= dt;
+      if (state.overtimeStarCooldown <= 0) {
+        spawnOverdriveStar();
+        state.overtimeStarCooldown = rand(3.8, 4.8);
+      }
+
+      if (!state.speaker && state.gravityFlipTimer <= 0) {
+        state.overtimeSpeakerCooldown -= dt;
+        if (state.overtimeSpeakerCooldown <= 0) {
+          spawnSpeakerCannon();
+          state.overtimeSpeakerCooldown = 13.0;
+        }
+      }
+    }
+
+    // ---- Main Track Obstacle Spawner ----
+    // Hold spawning during Speaker Cannon showcase and right before Gravity Flip return
+    if (state.speaker) return;
+    if (state.gravityFlipTimer > 0 && state.gravityFlipTimer < 0.75) return;
+
+    state.spawnCooldown -= dt;
+    if (state.spawnCooldown <= 0) {
+      // Ensure minimum fair pixel spacing from the rightmost obstacle
+      let rightmost = 0;
+      for (const ob of state.obstacles) {
+        if (ob.state !== 'fleeing' && ob.x > rightmost) rightmost = ob.x;
+      }
+      const minGap = clamp(state.speed * 0.52, 240, 340);
+      if (STAGE_W - rightmost < minGap && rightmost > 0) {
+        state.spawnCooldown = 0.14;
+        return;
+      }
+
+      // Pick from unlocked phase pool
+      const roll = Math.random();
+      if (t < 5.0) {
+        spawnCactus();
+      } else if (t < 10.0) {
+        if (roll < 0.55) spawnCactus();
+        else spawnBird();
+      } else if (t < 15.0) {
+        if (roll < 0.34) spawnCactus();
+        else if (roll < 0.58) spawnBird();
+        else if (roll < 0.79) spawnFoamWall();
+        else spawnNeighbor();
+      } else if (t < 17.0) {
+        if (roll < 0.34) spawnCactus();
+        else if (roll < 0.56) spawnBird();
+        else if (roll < 0.78) spawnFoamWall();
+        else spawnNeighbor();
+      } else if (t < 19.0) {
+        if (roll < 0.28) spawnCactus();
+        else if (roll < 0.48) spawnBird();
+        else if (roll < 0.64) spawnFoamWall();
+        else if (roll < 0.80) spawnNeighbor();
+        else spawnMuteDrone();
+      } else {
+        // Full chaotic pool
+        if (roll < 0.24) spawnCactus();
+        else if (roll < 0.42) spawnBird();
+        else if (roll < 0.55) spawnFoamWall();
+        else if (roll < 0.69) spawnNeighbor();
+        else if (roll < 0.84) spawnMuteDrone();
+        else spawnRewindTape();
+      }
+
+      // Tight, snappy rhythm that speeds up gently over time
+      const baseGapSec = clamp(1.12 - t * 0.014, 0.68, 1.12);
+      state.spawnCooldown = rand(baseGapSec * 0.82, baseGapSec * 1.18);
+    }
+  }
+
+  // ---- Main Simulation Step ----
+  function update(dt) {
+    // Update confetti even on victory screen
+    if (state.mode === 'finished') {
+      for (const c of state.finishConfetti) {
+        c.x += c.vx * dt;
+        c.y += c.vy * dt;
+        c.vy += 420 * dt;
+        c.rot += c.vrot * dt;
+      }
+      audio.update(dt, { running: false, volume: 0, elapsed: state.elapsed });
+      return;
+    }
+
+    if (state.mode !== 'playing') {
+      // Gentle idle animation on start screen
+      state.dino.runAnim += dt * 6;
+      for (const cl of state.clouds) {
+        cl.x -= 18 * dt;
+        if (cl.x < -70) cl.x = STAGE_W + 40;
+      }
+      audio.update(dt, { running: false, volume: 0, elapsed: 0 });
+      return;
+    }
+
+    state.elapsed += dt;
+    state.scrollX += state.speed * dt;
+
+    // ---- Timers & Visual Juice ----
+    state.hudFlash = Math.max(0, state.hudFlash - dt);
+    state.hudShake = Math.max(0, state.hudShake - dt * 26);
+    state.screenShake = Math.max(0, state.screenShake - dt * 32);
+
+    if (state.banner) {
+      state.banner.timer -= dt;
+      if (state.banner.timer <= 0) state.banner = null;
+    }
+
+    if (state.modalAutoClose > 0) {
+      state.modalAutoClose -= dt;
+      if (state.modalAutoClose <= 0) hideHearingModal();
+    }
+
+    if (state.nightTimer > 0) {
+      state.nightTimer -= dt;
+      state.nightAlpha = Math.min(1, state.nightAlpha + dt * 4);
+    } else {
+      state.nightAlpha = Math.max(0, state.nightAlpha - dt * 3);
+    }
+
+    if (state.foamTimer > 0) {
+      state.foamTimer -= dt;
+      if (state.foamTimer <= 0) state.foamCount = 0;
+    }
+    if (state.shushTimer > 0) state.shushTimer = Math.max(0, state.shushTimer - dt);
+    if (state.rewindTimer > 0) state.rewindTimer = Math.max(0, state.rewindTimer - dt);
+    if (state.muffleTimer > 0) state.muffleTimer = Math.max(0, state.muffleTimer - dt);
+
+    // Gravity flip timer & return
+    if (state.gravityFlipTimer > 0) {
+      state.gravityFlipTimer -= dt;
+      if (state.gravityFlipTimer <= 1.0 && !state.gravityFlipReturnWarned) {
+        state.gravityFlipReturnWarned = true;
+        showBanner('↓ GRAVITY RETURNING!', '#00d2d3', 0.95);
+      }
+      if (state.gravityFlipTimer <= 0) {
+        state.gravityFlipTimer = 0;
+        state.gravityFlipReturnWarned = false;
+        state.gravityDir = 1;
+        state.dino.grounded = false;
+        state.dino.vy = 260;
+        audio.playGravityFlip(false);
+        // Clear any obstacle immediately under the landing zone for fairness
+        state.obstacles = state.obstacles.filter((o) => o.x > state.dino.x + 210 || o.x < state.dino.x - 40);
+      }
+    }
+
+    // ---- Brake & Lock Progress ----
+    state.braking = input.brakeHeld;
+    if (state.braking) {
+      state.brakeProgress = Math.min(1, state.brakeProgress + dt / BRAKE_DURATION);
+      if (Math.random() < 0.75) {
+        const d = state.dino;
+        state.particles.push({
+          x: d.x + 8,
+          y: d.y - 3 * state.gravityDir,
+          vx: -rand(110, 230),
+          vy: rand(-90, -25) * state.gravityDir,
+          size: rand(2.5, 5),
+          color: Math.random() > 0.4 ? '#ff9f43' : '#ffeaa7',
+          life: 0.28,
+          maxLife: 0.28,
+          gravity: 340 * state.gravityDir
+        });
+      }
+      if (state.brakeProgress >= 1) {
+        brakeFillEl.style.width = '100%';
+        finishRun('braked');
+        return;
+      }
+    } else {
+      state.brakeProgress = Math.max(0, state.brakeProgress - dt * 1.4);
+    }
+    brakeFillEl.style.width = `${Math.round(state.brakeProgress * 100)}%`;
+
+    // ---- Passive Volume Gain & Latched Drone Drain ----
+    let passiveRate = 0;
+    if (!state.braking) {
+      if (state.rewindTimer > 0) {
+        passiveRate = -5.1;
+      } else if (state.shushTimer > 0) {
+        passiveRate = 0;
+      } else {
+        passiveRate = 3.45;
+        if (state.volume >= 95) {
+          const tElastic = clamp((state.volume - 95) / 5, 0, 1);
+          passiveRate *= lerp(0.54, 0.28, tElastic);
+        }
+        if (state.foamCount > 0) {
+          passiveRate *= 0.45;
+        }
+      }
+    }
+
+    if (passiveRate !== 0) {
+      state.volume = clamp(state.volume + passiveRate * dt, MIN_VOL, MAX_VOL);
+      if (passiveRate < 0) {
+        state.volumeLost += Math.abs(passiveRate * dt);
+      }
+    }
+
+    if (state.latchedDrone) {
+      state.latchedDrone.timer -= dt;
+      state.latchedDrone.pulse += dt * 12;
+      const drain = 8.0 * dt;
+      state.volume = clamp(state.volume - drain, MIN_VOL, MAX_VOL);
+      state.volumeLost += drain;
+      if (state.latchedDrone.timer <= 0) {
+        state.latchedDrone = null;
+      }
+    }
+
+    // Smooth visual needle
+    state.visualVolume = lerp(state.visualVolume, state.volume, Math.min(1, dt * 14));
+
+    // Check 100% Victory!
+    if (state.volume >= 100) {
+      finishRun('100');
+      return;
+    }
+
+    // ---- Dino Movement & Physics ----
+    const d = state.dino;
+    d.invuln = Math.max(0, d.invuln - dt);
+    d.hurtFace = Math.max(0, d.hurtFace - dt);
+    d.runAnim += dt * (state.speed / 34);
+
+    // Recover horizontal position after rocket knockback
+    if (d.x < BASE_DINO_X) {
+      d.x = Math.min(BASE_DINO_X, d.x + dt * 36);
+    }
+
+    // Coyote time & jump buffer
+    if (d.grounded) {
+      d.coyote = 0.075;
+    } else {
+      d.coyote = Math.max(0, d.coyote - dt);
+    }
+    input.jumpBuffer = Math.max(0, input.jumpBuffer - dt);
+
+    // Execute buffered jump
+    if (input.jumpBuffer > 0 && d.coyote > 0) {
+      const foamPenalty = state.foamCount > 0 ? (1 - state.foamCount * 0.085) : 1;
+      const jumpPower = 665 * foamPenalty;
+      d.vy = -jumpPower * state.gravityDir;
+      d.grounded = false;
+      d.ducking = false;
+      d.slamming = false;
+      d.coyote = 0;
+      input.jumpBuffer = 0;
+      audio.playJump(state.foamCount > 0);
+
+      // Jumping shakes off 1 Acoustic Foam wedge!
+      if (state.foamCount > 0) {
+        state.foamCount -= 1;
+        if (state.foamCount === 0) state.foamTimer = 0;
+        addBurst(d.x + 20, dinoCenterY(), '#71788c', 6, 0.85);
+        addFloatingText(
+          d.x + 24,
+          dinoCenterY() - 26,
+          state.foamCount === 0 ? 'FOAM CLEARED!' : `FOAM ×${state.foamCount}`,
+          '#636e72',
+          0.9
+        );
+      }
+    }
+
+    // Ducking state on ground
+    if (d.grounded) {
+      d.ducking = input.duckHeld;
+    }
+
+    // Vertical integration
+    if (!d.grounded) {
+      d.vy += 2080 * state.gravityDir * dt;
+      d.y += d.vy * dt;
+
+      const sY = surfaceY();
+      const landed = state.gravityDir === 1 ? d.y >= sY : d.y <= sY;
+      if (landed) {
+        d.y = sY;
+        d.vy = 0;
+        d.grounded = true;
+
+        if (d.slamming) {
+          d.slamming = false;
+          audio.playSlam();
+          state.screenShake = Math.max(state.screenShake, 7);
+          addBurst(d.x + 20, sY, '#b2bec3', 10, 0.85);
+
+          // Smash latched Mute Drone!
+          if (state.latchedDrone) {
+            state.latchedDrone = null;
+            changeVolume(6, 'recover');
+            audio.playDroneSmash();
+            addBurst(d.x + 18, dinoCenterY(), '#a55eea', 16, 1.25);
+            addFloatingText(d.x + 30, dinoCenterY() - 28, 'DRONE SMASHED! +6%', '#2ed573', 1.15);
+          }
+        }
+        d.ducking = input.duckHeld;
+      }
+    }
+
+    // Purple rewind afterimages
+    if (state.rewindTimer > 0 && Math.random() < 0.45) {
+      d.afterimages.push({
+        x: d.x,
+        y: d.y,
+        ducking: d.ducking,
+        dir: state.gravityDir,
+        life: 0.24
+      });
+    }
+    for (let i = d.afterimages.length - 1; i >= 0; i--) {
+      d.afterimages[i].x -= state.speed * 0.45 * dt;
+      d.afterimages[i].life -= dt;
+      if (d.afterimages[i].life <= 0) d.afterimages.splice(i, 1);
+    }
+
+    // ---- Update Scenery ----
+    for (const cl of state.clouds) {
+      cl.x -= state.speed * 0.14 * dt;
+      if (cl.x < -80) {
+        cl.x = STAGE_W + rand(30, 120);
+        cl.y = rand(86, 165);
+      }
+    }
+    for (const gd of state.groundDots) {
+      gd.x -= state.speed * dt;
+      if (gd.x < -12) gd.x += STAGE_W + 30;
+    }
+
+    // ---- Director Spawning ----
+    updateDirector(dt);
+
+    // ---- Update & Collide Obstacles ----
+    const hb = dinoHitbox();
+
+    for (let i = state.obstacles.length - 1; i >= 0; i--) {
+      const ob = state.obstacles[i];
+
+      if (ob.type === 'bird') {
+        ob.flap += dt * 10;
+        if (ob.state === 'incoming') {
+          ob.x -= state.speed * 1.12 * dt;
+          if (d.invuln <= 0 && aabb(hb, ob)) {
+            // Pickpocket steals 12%!
+            changeVolume(-ob.stolenAmount, 'damage');
+            state.hitsTaken += 1;
+            d.invuln = 0.40;
+            d.hurtFace = 0.55;
+            audio.playBirdSteal();
+            addFloatingText(d.x + 28, dinoCenterY() - 24, `STOLEN -${ob.stolenAmount}%! JUMP TO BONK!`, '#ff4757', 1.0);
+
+            // Visual stolen chunk flying from HUD bar to bird
+            state.hudChunks.push({
+              x: 190 + (clamp(state.volume, 0, 100) / 100) * 320,
+              y: 30,
+              tx: d.x + 125,
+              ty: state.gravityDir === 1 ? FLOOR_Y - 102 : CEIL_Y + 102,
+              t: 0,
+              text: `-${ob.stolenAmount}%`,
+              color: '#ff4757'
+            });
+
+            ob.state = 'fleeing';
+            ob.fleeTimer = 2.35;
+            ob.reclaimGrace = 0.18;
+          }
+        } else if (ob.state === 'fleeing') {
+          ob.fleeTimer -= dt;
+          ob.reclaimGrace = Math.max(0, ob.reclaimGrace - dt);
+          const targetX = d.x + 126 + Math.sin(ob.flap * 0.7) * 20;
+          const targetY = state.gravityDir === 1 ? FLOOR_Y - 104 : CEIL_Y + 78;
+          ob.x = lerp(ob.x, targetX, Math.min(1, dt * 6.5));
+          ob.y = lerp(ob.y, targetY + Math.sin(ob.flap) * 10, Math.min(1, dt * 6.5));
+
+          // Reclaim by jumping into the fleeing bird! (allowed during i-frames)
+          const bigBirdBox = { x: ob.x - 8, y: ob.y - 8, w: ob.w + 16, h: ob.h + 16 };
+          if (ob.reclaimGrace <= 0 && aabb(hb, bigBirdBox)) {
+            ob.state = 'bonked';
+            ob.vx = 240;
+            ob.vy = -300 * state.gravityDir;
+            changeVolume(ob.stolenAmount, 'recover');
+            audio.playBirdReclaim();
+            addBurst(ob.x + 18, ob.y + 10, '#ffa502', 14, 1.1);
+            addFloatingText(ob.x, ob.y - 12, `RECLAIMED +${ob.stolenAmount}%!`, '#2ed573', 1.15);
+            state.hudChunks.push({
+              x: ob.x,
+              y: ob.y,
+              tx: 260,
+              ty: 28,
+              t: 0,
+              text: `+${ob.stolenAmount}%`,
+              color: '#2ed573'
+            });
+          } else if (ob.fleeTimer <= 0) {
+            ob.state = 'escaping';
+            addFloatingText(ob.x, ob.y - 8, 'MINE! LOL', '#ff6b81', 0.95);
+          }
+        } else if (ob.state === 'escaping') {
+          ob.x += 460 * dt;
+          ob.y -= 130 * state.gravityDir * dt;
+        } else if (ob.state === 'bonked') {
+          ob.x += ob.vx * dt;
+          ob.y += ob.vy * dt;
+          ob.vy += 900 * state.gravityDir * dt;
+        }
+
+        if (ob.x < -80 || ob.x > STAGE_W + 100 || ob.y < -80 || ob.y > STAGE_H + 80) {
+          state.obstacles.splice(i, 1);
+        }
+        continue;
+      }
+
+      if (ob.type === 'gate') {
+        ob.x -= state.speed * dt;
+        ob.pulse += dt * 8;
+        if (!ob.triggered && ob.x < d.x + 22) {
+          ob.triggered = true;
+          state.gravityDir = -1;
+          state.gravityFlipTimer = 4.8;
+          state.gravityFlipReturnWarned = false;
+          d.grounded = false;
+          d.vy = -290;
+          audio.playGravityFlip(true);
+          showBanner('↑↓ CEILING GRAVITY FLIP!', '#00d2d3', 1.5);
+          addBurst(d.x + 20, dinoCenterY(), '#00d2d3', 14, 1.1);
+          // Clear any overlapping floor obstacle right behind gate for clean flip
+          for (let j = state.obstacles.length - 1; j >= 0; j--) {
+            const other = state.obstacles[j];
+            if (other !== ob && other.x > d.x - 20 && other.x < d.x + 230) {
+              state.obstacles.splice(j, 1);
+              if (j < i) i--;
+            }
+          }
+        }
+        if (ob.x < -50) state.obstacles.splice(i, 1);
+        continue;
+      }
+
+      // Standard moving obstacles
+      ob.x -= state.speed * dt;
+
+      if (ob.type === 'neighbor') {
+        ob.phase += dt * 7;
+        ob.y = ob.baseY + Math.sin(ob.phase) * 9;
+      } else if (ob.type === 'drone') {
+        ob.phase += dt * 6;
+        ob.y = ob.baseY + Math.sin(ob.phase) * 14;
+      } else if (ob.type === 'rewind') {
+        ob.spin += dt * 11;
+        ob.y = ob.baseY - Math.abs(Math.sin(ob.spin * 0.6)) * 12 * ob.dir;
+      }
+
+      // Collision checks
+      if (!ob.hit && aabb(hb, ob)) {
+        if (ob.type === 'cactus' && d.invuln <= 0) {
+          ob.hit = true;
+          changeVolume(-8, 'damage');
+          state.hitsTaken += 1;
+          d.invuln = 0.45;
+          d.hurtFace = 0.55;
+          state.screenShake = Math.max(state.screenShake, 5);
+          audio.playCactusSqueak();
+          spawnVolumePellets(d.x + 24, dinoCenterY());
+          addBurst(ob.x + ob.w * 0.5, ob.y + ob.h * 0.5, '#2ed573', 8, 0.9);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, 'SPILL -8%! CATCH!', '#ff6b6b', 1.0);
+        } else if (ob.type === 'foam' && d.invuln <= 0) {
+          ob.hit = true;
+          changeVolume(-5, 'damage');
+          state.hitsTaken += 1;
+          d.invuln = 0.40;
+          d.hurtFace = 0.45;
+          state.foamCount = 3;
+          state.foamTimer = 4.2;
+          audio.playFoam();
+          addBurst(ob.x + 17, ob.y + 24, '#636e72', 14, 1.05);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, 'MUFFLED -5%! JUMP ×3', '#57606f', 1.05);
+          state.obstacles.splice(i, 1);
+          continue;
+        } else if (ob.type === 'neighbor' && d.invuln <= 0) {
+          ob.hit = true;
+          changeVolume(-14, 'damage');
+          state.hitsTaken += 1;
+          d.invuln = 0.45;
+          d.hurtFace = 0.6;
+          state.shushTimer = 2.5;
+          audio.playShush();
+          spawnStickyNote(14);
+          addBurst(ob.x + 18, ob.y + 18, '#ffdd59', 10, 0.9);
+          addFloatingText(d.x + 24, dinoCenterY() - 26, 'SHUSHED -14%!', '#e1b12c', 1.1);
+          state.obstacles.splice(i, 1);
+          continue;
+        } else if (ob.type === 'drone' && !state.latchedDrone) {
+          ob.hit = true;
+          state.hitsTaken += 1;
+          d.hurtFace = 0.5;
+          state.latchedDrone = { timer: 2.8, pulse: 0 };
+          audio.playDroneLatch();
+          addFloatingText(d.x + 26, dinoCenterY() - 28, 'MUTE LATCHED! JUMP + ↓ SLAM!', '#a55eea', 1.05);
+          state.obstacles.splice(i, 1);
+          continue;
+        } else if (ob.type === 'rewind' && d.invuln <= 0) {
+          ob.hit = true;
+          changeVolume(-4, 'damage');
+          state.hitsTaken += 1;
+          d.invuln = 0.42;
+          d.hurtFace = 0.5;
+          state.rewindTimer = 3.0;
+          audio.playRewind();
+          addBurst(ob.x + 18, ob.y + 13, '#9c88ff', 12, 1.0);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, '⏪ REWINDING VOLUME!', '#8c7ae6', 1.1);
+          state.obstacles.splice(i, 1);
+          continue;
+        }
+      }
+
+      if (ob.x + ob.w < -60) {
+        state.obstacles.splice(i, 1);
+      }
+    }
+
+    // ---- Update Bouncing Sonic-Ring Volume Pellets ----
+    for (let i = state.pellets.length - 1; i >= 0; i--) {
+      const p = state.pellets[i];
+      p.life -= dt;
+      p.pickupDelay = Math.max(0, p.pickupDelay - dt);
+      p.x += (p.vx - state.speed * 0.42) * dt;
+      p.vy += 1150 * state.gravityDir * dt;
+      p.y += p.vy * dt;
+
+      const sY = surfaceY();
+      if (state.gravityDir === 1 && p.y + p.r > sY) {
+        p.y = sY - p.r;
+        p.vy = -Math.abs(p.vy) * 0.62;
+        p.bounces += 1;
+      } else if (state.gravityDir === -1 && p.y - p.r < sY) {
+        p.y = sY + p.r;
+        p.vy = Math.abs(p.vy) * 0.62;
+        p.bounces += 1;
+      }
+
+      const pBox = { x: p.x - p.r - 4, y: p.y - p.r - 4, w: (p.r + 4) * 2, h: (p.r + 4) * 2 };
+      if (p.pickupDelay <= 0 && aabb(hb, pBox)) {
+        changeVolume(2, 'recover');
+        audio.playPellet();
+        addBurst(p.x, p.y, '#ffdd59', 6, 0.7);
+        addFloatingText(p.x, p.y - 10, '+2%', '#2ed573', 0.9);
+        state.pellets.splice(i, 1);
+        continue;
+      }
+
+      if (p.life <= 0 || p.x < -30 || p.x > STAGE_W + 40) {
+        state.pellets.splice(i, 1);
+      }
+    }
+
+    // ---- Update Lock-On Rockets ----
+    for (let i = state.rockets.length - 1; i >= 0; i--) {
+      const r = state.rockets[i];
+      if (r.phase === 'tracking') {
+        r.timer -= dt;
+        r.beepTimer -= dt;
+        const desiredY = clamp(dinoCenterY(), CEIL_Y + 18, FLOOR_Y - 18);
+        r.y = lerp(r.y, desiredY, Math.min(1, dt * 8));
+        if (r.beepTimer <= 0) {
+          audio.playRadarBeep(false);
+          r.beepTimer = 0.22;
+        }
+        if (r.timer <= 0) {
+          r.phase = 'locked';
+          r.timer = 0.22;
+          audio.playRadarBeep(true);
+        }
+      } else if (r.phase === 'locked') {
+        r.timer -= dt;
+        if (r.timer <= 0) {
+          r.phase = 'firing';
+          r.x = STAGE_W + 10;
+          audio.playRocketLaunch();
+        }
+      } else if (r.phase === 'firing') {
+        r.x += r.vx * dt;
+        // Rocket exhaust trail
+        if (Math.random() < 0.8) {
+          state.particles.push({
+            x: r.x + r.w,
+            y: r.y + rand(-3, 3),
+            vx: rand(60, 140),
+            vy: rand(-25, 25),
+            size: rand(3, 7),
+            color: Math.random() > 0.45 ? '#ffa502' : '#dfe4ea',
+            life: 0.24,
+            maxLife: 0.24,
+            gravity: 0
+          });
+        }
+
+        const rBox = { x: r.x, y: r.y - r.h * 0.5, w: r.w, h: r.h };
+        if (!r.hit && d.invuln <= 0 && aabb(hb, rBox)) {
+          r.hit = true;
+          changeVolume(-18, 'damage');
+          state.hitsTaken += 1;
+          state.rocketsEaten += 1;
+          d.invuln = 0.55;
+          d.hurtFace = 0.85;
+          d.x = Math.max(42, d.x - 86);
+          state.muffleTimer = 2.0;
+          state.screenShake = 14;
+          audio.playRocketBoom();
+          addBurst(r.x + 12, r.y, '#ff4757', 20, 1.45);
+          addBurst(r.x + 12, r.y, '#ffa502', 14, 1.15);
+          addFloatingText(d.x + 36, dinoCenterY() - 28, 'BLOWOUT -18%!', '#ff3838', 1.25);
+          state.rockets.splice(i, 1);
+          continue;
+        }
+
+        if (r.x + r.w < -40) {
+          state.rockets.splice(i, 1);
+        }
+      }
+    }
+
+    // ---- Update Giant Speaker Cannon & Sound Waves ----
+    if (state.speaker) {
+      const sp = state.speaker;
+      if (!sp.exiting) {
+        sp.x = lerp(sp.x, sp.targetX, Math.min(1, dt * 6));
+        sp.timer -= dt;
+        sp.fireTimer -= dt;
+        if (sp.fireTimer <= 0 && sp.timer > 0.6) {
+          if (sp.nextAttack === 'bass') {
+            audio.playBassBlast();
+            state.speakerWaves.push({
+              kind: 'bass',
+              x: sp.x - 10,
+              y: FLOOR_Y - 46,
+              w: 28,
+              h: 46,
+              vx: -540,
+              hit: false
+            });
+            sp.nextAttack = 'treble';
+          } else {
+            audio.playRadarBeep(false);
+            state.speakerWaves.push({
+              kind: 'treble',
+              phase: 'telegraph',
+              timer: 0.44,
+              y: FLOOR_Y - 46, // Standing head height; ducking dino fits safely underneath!
+              h: 16,
+              hit: false
+            });
+            sp.nextAttack = 'bass';
+          }
+          sp.fireTimer = 1.12;
+        }
+        if (sp.timer <= 0) sp.exiting = true;
+      } else {
+        sp.x += 260 * dt;
+        if (sp.x > STAGE_W + 90) {
+          state.speaker = null;
+        }
+      }
+    }
+
+    for (let i = state.speakerWaves.length - 1; i >= 0; i--) {
+      const wv = state.speakerWaves[i];
+      if (wv.kind === 'bass') {
+        wv.x += wv.vx * dt;
+        if (!wv.hit && d.invuln <= 0 && aabb(hb, wv)) {
+          wv.hit = true;
+          changeVolume(-12, 'damage');
+          state.hitsTaken += 1;
+          d.invuln = 0.45;
+          d.hurtFace = 0.55;
+          state.screenShake = 8;
+          audio.playSlam();
+          addBurst(d.x + 20, dinoCenterY(), '#ff6b35', 12, 1.0);
+          addFloatingText(d.x + 28, dinoCenterY() - 24, 'BASS BLAST -12%!', '#ff6b35', 1.1);
+        }
+        if (wv.x + wv.w < -40) state.speakerWaves.splice(i, 1);
+      } else {
+        wv.timer -= dt;
+        if (wv.phase === 'telegraph' && wv.timer <= 0) {
+          wv.phase = 'active';
+          wv.timer = 0.22;
+          audio.playTrebleBeam();
+          state.screenShake = Math.max(state.screenShake, 5);
+        } else if (wv.phase === 'active') {
+          const beamBox = { x: 0, y: wv.y, w: STAGE_W - 60, h: wv.h };
+          if (!wv.hit && d.invuln <= 0 && aabb(hb, beamBox)) {
+            wv.hit = true;
+            changeVolume(-12, 'damage');
+            state.hitsTaken += 1;
+            d.invuln = 0.45;
+            d.hurtFace = 0.55;
+            addBurst(d.x + 20, wv.y + 8, '#00d2d3', 12, 1.0);
+            addFloatingText(d.x + 28, dinoCenterY() - 24, 'TREBLE ZAP -12%!', '#00a8ff', 1.1);
+          }
+          if (wv.timer <= 0) state.speakerWaves.splice(i, 1);
+        }
+      }
+    }
+
+    // ---- Update Overtime +20% Overdrive Stars ----
+    for (let i = state.stars.length - 1; i >= 0; i--) {
+      const st = state.stars[i];
+      st.x -= state.speed * 0.9 * dt;
+      st.spin += dt * 6;
+      const sBox = { x: st.x - st.r, y: st.y - st.r, w: st.r * 2, h: st.r * 2 };
+      if (!st.collected && aabb(hb, sBox)) {
+        st.collected = true;
+        changeVolume(20, 'recover');
+        audio.playStarPickup();
+        addBurst(st.x, st.y, '#ffdd59', 20, 1.3);
+        addFloatingText(st.x, st.y - 14, 'OVERDRIVE +20%!', '#f5a623', 1.25);
+        state.stars.splice(i, 1);
+        continue;
+      }
+      if (st.x < -40) state.stars.splice(i, 1);
+    }
+
+    // ---- Update Particles, Floating Texts & HUD Chunks ----
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const p = state.particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += p.gravity * dt;
+      p.life -= dt;
+      if (p.life <= 0) state.particles.splice(i, 1);
+    }
+
+    for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = state.floatingTexts[i];
+      ft.y += ft.vy * dt;
+      ft.life -= dt;
+      if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+    }
+
+    for (let i = state.hudChunks.length - 1; i >= 0; i--) {
+      const hc = state.hudChunks[i];
+      hc.t += dt * 3.2;
+      if (hc.t >= 1) state.hudChunks.splice(i, 1);
+    }
+
+    // ---- Update Audio Engine ----
+    audio.update(dt, {
+      running: true,
+      volume: state.volume,
+      elapsed: state.elapsed,
+      muffleTimer: state.muffleTimer,
+      foamCount: state.foamCount,
+      shushTimer: state.shushTimer,
+      rewindTimer: state.rewindTimer,
+      braking: state.braking,
+      brakeProgress: state.brakeProgress,
+      latchedDrone: state.latchedDrone
+    });
+
+    // Dynamic bottom strip hint for contextual feedback
+    if (state.latchedDrone) {
+      stripHintEl.textContent = '⚠ MUTE DRONE LATCHED — JUMP + PRESS ↓ TO SLAM IT OFF!';
+    } else if (state.foamCount > 0) {
+      stripHintEl.textContent = `FOAM MUFFLING (${state.foamCount} LEFT) — JUMP TO SHAKE IT OFF!`;
+    } else if (state.braking) {
+      stripHintEl.textContent = `SCREECHING TO LOCK ${Math.round(state.volume)}% — DODGE UNTIL FULL!`;
+    } else if (state.volume >= 94) {
+      stripHintEl.textContent = 'ALMOST 100%! PUSH THROUGH THE ELASTIC FINAL STRETCH!';
+    } else {
+      stripHintEl.textContent = 'DON\'T DIE (YOU CAN\'T) · HIT 100% OR HOLD BRAKE TO LOCK';
+    }
+  }
+
+  // ---- Pixel Sprite Drawing Helper ----
+  function drawPixelMatrix(matrix, x, y, px, color, bgEyeColor, flipY) {
+    const rows = matrix.length;
+    for (let r = 0; r < rows; r++) {
+      const rowStr = matrix[r];
+      const drawRow = flipY ? (rows - 1 - r) : r;
+      for (let c = 0; c < rowStr.length; c++) {
+        const ch = rowStr[c];
+        if (ch === '1') {
+          ctx.fillStyle = color;
+          ctx.fillRect(Math.round(x + c * px), Math.round(y + drawRow * px), px, px);
+        } else if (ch === '2') {
+          ctx.fillStyle = bgEyeColor;
+          ctx.fillRect(Math.round(x + c * px), Math.round(y + drawRow * px), px, px);
+        }
+      }
+    }
+  }
+
+  function drawCactus(ob, ink) {
+    ctx.save();
+    if (ob.dir === -1) {
+      ctx.translate(ob.x + ob.w * 0.5, ob.y + ob.h * 0.5);
+      ctx.scale(1, -1);
+      ctx.translate(-(ob.x + ob.w * 0.5), -(ob.y + ob.h * 0.5));
+    }
+    ctx.fillStyle = ink;
+    const x = Math.round(ob.x);
+    const y = Math.round(ob.y);
+
+    function drawSingle(sx, sy, sw, sh) {
+      const stemW = Math.max(8, Math.round(sw * 0.42));
+      const stemX = sx + Math.round((sw - stemW) / 2);
+      ctx.fillRect(stemX, sy, stemW, sh);
+      // Left arm
+      ctx.fillRect(sx, sy + Math.round(sh * 0.28), Math.round(sw * 0.34), Math.round(sh * 0.24));
+      ctx.fillRect(sx, sy + Math.round(sh * 0.44), Math.round(sw * 0.5), 5);
+      // Right arm
+      const rightX = sx + sw - Math.round(sw * 0.34);
+      ctx.fillRect(rightX, sy + Math.round(sh * 0.16), Math.round(sw * 0.34), Math.round(sh * 0.28));
+      ctx.fillRect(stemX + stemW - 2, sy + Math.round(sh * 0.36), Math.round(sw * 0.36), 5);
+    }
+
+    if (ob.variant === 'cluster') {
+      drawSingle(x, y + 6, 20, ob.h - 6);
+      drawSingle(x + 20, y, 24, ob.h);
+    } else {
+      drawSingle(x, y, ob.w, ob.h);
+    }
+    ctx.restore();
+  }
+
+  function drawStarShape(cx, cy, outerR, innerR, points, rot) {
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const r = i % 2 === 0 ? outerR : innerR;
+      const a = rot + (i * Math.PI) / points;
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  // ---- Main Render ----
+  function render() {
+    // Palette blend between classic Chrome paper (#f7f7f7) and Night Mode (#181928)
+    const na = state.nightAlpha;
+    const bgR = Math.round(lerp(247, 24, na));
+    const bgG = Math.round(lerp(247, 25, na));
+    const bgB = Math.round(lerp(247, 40, na));
+    const bgCol = `rgb(${bgR},${bgG},${bgB})`;
+
+    const inkR = Math.round(lerp(72, 234, na));
+    const inkG = Math.round(lerp(72, 232, na));
+    const inkB = Math.round(lerp(72, 224, na));
+    const inkCol = `rgb(${inkR},${inkG},${inkB})`;
+    const mutedCol = na > 0.5 ? '#727599' : '#a8a8a8';
+
+    // Camera shake (rocket impacts + high-volume bass clipping beat thump!)
+    let shakeX = 0;
+    let shakeY = 0;
+    const bassShake = (state.mode === 'playing' && (state.speaker || state.volume >= 76))
+      ? audio.beatPulse * (state.speaker ? 4.2 : 2.2)
+      : 0;
+    const totalShake = state.screenShake + bassShake;
+    if (totalShake > 0.2) {
+      shakeX = rand(-totalShake, totalShake);
+      shakeY = rand(-totalShake * 0.65, totalShake * 0.65);
+    }
+
+    ctx.save();
+    ctx.fillStyle = bgCol;
+    ctx.fillRect(0, 0, STAGE_W, STAGE_H);
+
+    // ---- Playfield Layer (with shake) ----
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, HUD_H, STAGE_W, STAGE_H - HUD_H - 56);
+    ctx.clip();
+    ctx.translate(shakeX, shakeY);
+
+    // Subtle Rewind / Muffle tint overlays
+    if (state.rewindTimer > 0) {
+      ctx.fillStyle = 'rgba(140, 122, 230, 0.10)';
+      ctx.fillRect(0, HUD_H, STAGE_W, FLOOR_Y - HUD_H + 14);
+    } else if (state.muffleTimer > 0) {
+      ctx.fillStyle = 'rgba(255, 71, 87, 0.08)';
+      ctx.fillRect(0, HUD_H, STAGE_W, FLOOR_Y - HUD_H + 14);
+    }
+
+    // Night stars & crescent moon
+    if (na > 0.08) {
+      ctx.save();
+      ctx.globalAlpha = na * 0.8;
+      ctx.fillStyle = '#eceae3';
+      for (const st of state.bgStars) {
+        const blink = 0.5 + 0.5 * Math.sin(state.elapsed * 4 + st.tw);
+        ctx.fillRect(st.x, st.y, st.r + blink * 0.8, st.r + blink * 0.8);
+      }
+      // Pixel moon
+      ctx.beginPath();
+      ctx.arc(680, 108, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = bgCol;
+      ctx.beginPath();
+      ctx.arc(687, 103, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Clouds
+    ctx.fillStyle = na > 0.5 ? 'rgba(236,234,227,0.16)' : '#dcdcdc';
+    for (const cl of state.clouds) {
+      const s = cl.s;
+      ctx.fillRect(cl.x, cl.y, 46 * s, 10 * s);
+      ctx.fillRect(cl.x + 10 * s, cl.y - 7 * s, 26 * s, 9 * s);
+    }
+
+    // Approaching 100% Checkered Finish Ribbon teaser when >= 94%
+    if (state.mode === 'playing' && state.volume >= 94) {
+      const progress = clamp((state.volume - 94) / 6, 0, 1);
+      const ribbonX = lerp(STAGE_W - 10, state.dino.x + 56, progress);
+      ctx.save();
+      ctx.globalAlpha = 0.25 + progress * 0.65;
+      for (let ry = CEIL_Y; ry < FLOOR_Y; ry += 12) {
+        ctx.fillStyle = (Math.floor(ry / 12) % 2 === 0) ? '#ff4757' : '#ffffff';
+        ctx.fillRect(ribbonX, ry, 10, 12);
+      }
+      ctx.fillStyle = '#ff4757';
+      ctx.font = 'bold 12px ui-monospace, monospace';
+      ctx.fillText('100%', ribbonX - 10, CEIL_Y + 14);
+      ctx.restore();
+    }
+
+    // Ceiling track line (prominent during Gravity Flip)
+    if (state.gravityFlipTimer > 0) {
+      ctx.strokeStyle = '#00d2d3';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, CEIL_Y);
+      ctx.lineTo(STAGE_W, CEIL_Y);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = na > 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, CEIL_Y);
+      ctx.lineTo(STAGE_W, CEIL_Y);
+      ctx.stroke();
+    }
+
+    // Floor horizon & pebbles
+    ctx.strokeStyle = inkCol;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, FLOOR_Y);
+    ctx.lineTo(STAGE_W, FLOOR_Y);
+    ctx.stroke();
+
+    ctx.fillStyle = mutedCol;
+    for (const gd of state.groundDots) {
+      ctx.fillRect(Math.round(gd.x), FLOOR_Y + gd.y, gd.w, 2);
+    }
+
+    // ---- Draw Obstacles ----
+    for (const ob of state.obstacles) {
+      if (ob.type === 'cactus') {
+        drawCactus(ob, inkCol);
+      } else if (ob.type === 'bird') {
+        const frame = Math.floor(ob.flap) % 2 === 0 ? BIRD_A : BIRD_B;
+        const birdColor = ob.state === 'fleeing' ? '#ff4757' : inkCol;
+        ctx.save();
+        if (ob.state === 'fleeing' || ob.state === 'escaping') {
+          // Flip horizontally to face right while taunting/fleeing
+          ctx.translate(ob.x + ob.w * 0.5, ob.y + ob.h * 0.5);
+          ctx.scale(-1, 1);
+          drawPixelMatrix(frame, -ob.w * 0.5, -ob.h * 0.5, 2.2, birdColor, bgCol, false);
+        } else {
+          drawPixelMatrix(frame, ob.x, ob.y, 2.2, birdColor, bgCol, false);
+        }
+        ctx.restore();
+
+        // Stolen volume badge dangling from fleeing bird's beak!
+        if (ob.state === 'fleeing') {
+          ctx.fillStyle = '#ff4757';
+          ctx.fillRect(ob.x + 12, ob.y + 18, 38, 17);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px ui-monospace, monospace';
+          ctx.fillText(`-${ob.stolenAmount}%`, ob.x + 16, ob.y + 30);
+
+          ctx.fillStyle = '#ffa502';
+          ctx.font = 'bold 10px ui-monospace, monospace';
+          ctx.fillText('BONK!', ob.x + 4, ob.y - 5);
+        }
+      } else if (ob.type === 'foam') {
+        // Acoustic Studio Foam Wedges
+        ctx.fillStyle = '#4b5263';
+        ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+        ctx.fillStyle = '#2f3542';
+        for (let fy = ob.y + 4; fy < ob.y + ob.h - 4; fy += 10) {
+          ctx.beginPath();
+          ctx.moveTo(ob.x, fy);
+          ctx.lineTo(ob.x + 10, fy + 5);
+          ctx.lineTo(ob.x, fy + 10);
+          ctx.fill();
+        }
+        ctx.strokeStyle = '#747d8c';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(ob.x, ob.y, ob.w, ob.h);
+        ctx.fillStyle = '#dfe4ea';
+        ctx.font = 'bold 9px ui-monospace, monospace';
+        ctx.fillText('FOAM', ob.x + 4, ob.y + ob.h * 0.5 + 3);
+      } else if (ob.type === 'neighbor') {
+        // Angry Neighbor Shush Speech Bubble
+        ctx.fillStyle = '#ffdd59';
+        ctx.strokeStyle = '#221d0c';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(ob.x, ob.y, ob.w, ob.h, 7);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🤫', ob.x + ob.w * 0.5, ob.y + 24);
+        ctx.textAlign = 'left';
+      } else if (ob.type === 'drone') {
+        // Mute Vacuum Quadcopter Drone
+        ctx.fillStyle = '#2f3542';
+        ctx.fillRect(ob.x + 4, ob.y + 6, ob.w - 8, ob.h - 8);
+        ctx.strokeStyle = '#a55eea';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ob.x + 4, ob.y + 6, ob.w - 8, ob.h - 8);
+        // Spinning rotors
+        const rotorW = 10 + Math.sin(state.elapsed * 45) * 4;
+        ctx.fillStyle = '#a55eea';
+        ctx.fillRect(ob.x + 4 - rotorW * 0.5, ob.y, rotorW, 3);
+        ctx.fillRect(ob.x + ob.w - 4 - rotorW * 0.5, ob.y, rotorW, 3);
+        ctx.font = '15px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔇', ob.x + ob.w * 0.5, ob.y + 23);
+        ctx.textAlign = 'left';
+      } else if (ob.type === 'rewind') {
+        // Retro Cassette Rewind Tape
+        ctx.fillStyle = '#6c5ce7';
+        ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+        ctx.strokeStyle = '#2d1e7a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ob.x, ob.y, ob.w, ob.h);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(ob.x + 4, ob.y + 4, ob.w - 8, 9);
+        // Reels
+        ctx.fillStyle = '#2d1e7a';
+        ctx.beginPath();
+        ctx.arc(ob.x + 11, ob.y + 18, 4, 0, Math.PI * 2);
+        ctx.arc(ob.x + ob.w - 11, ob.y + 18, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2d1e7a';
+        ctx.font = 'bold 9px ui-monospace, monospace';
+        ctx.fillText('⏪', ob.x + 12, ob.y + 12);
+      } else if (ob.type === 'gate') {
+        // Shimmering Gravity Flip Portal
+        const grad = ctx.createLinearGradient(ob.x, ob.y, ob.x + ob.w, ob.y + ob.h);
+        grad.addColorStop(0, 'rgba(0, 210, 211, 0.72)');
+        grad.addColorStop(0.5, 'rgba(255, 107, 129, 0.55)');
+        grad.addColorStop(1, 'rgba(0, 210, 211, 0.72)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+        ctx.strokeStyle = '#00d2d3';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(ob.x, ob.y, ob.w, ob.h);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('↑↓', ob.x + ob.w * 0.5, ob.y + ob.h * 0.5 - 6);
+        ctx.font = 'bold 10px ui-monospace, monospace';
+        ctx.fillText('FLIP', ob.x + ob.w * 0.5, ob.y + ob.h * 0.5 + 10);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    // ---- Draw Bouncing Volume Pellets ----
+    for (const p of state.pellets) {
+      const blink = p.life < 0.55 && Math.floor(p.life * 18) % 2 === 0;
+      if (blink) continue;
+      ctx.fillStyle = '#ffdd59';
+      ctx.strokeStyle = '#d35400';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#2d3436';
+      ctx.font = 'bold 9px ui-monospace, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('+', p.x, p.y + 3);
+      ctx.textAlign = 'left';
+    }
+
+    // ---- Draw Overtime +20% Overdrive Stars ----
+    for (const st of state.stars) {
+      ctx.save();
+      drawStarShape(st.x, st.y, st.r, st.r * 0.48, 5, st.spin);
+      ctx.fillStyle = '#ffdd59';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#e67e22';
+      ctx.stroke();
+      ctx.fillStyle = '#1e272e';
+      ctx.font = 'bold 10px ui-monospace, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('+20', st.x, st.y + 4);
+      ctx.restore();
+    }
+
+    // ---- Draw Lock-On Rockets & Reticles ----
+    for (const r of state.rockets) {
+      if (r.phase === 'tracking' || r.phase === 'locked') {
+        const locked = r.phase === 'locked';
+        // Laser sight line across stage
+        ctx.save();
+        ctx.strokeStyle = locked ? 'rgba(255, 56, 56, 0.85)' : 'rgba(255, 71, 87, 0.45)';
+        ctx.lineWidth = locked ? 2.5 : 1.5;
+        ctx.setLineDash(locked ? [] : [7, 6]);
+        ctx.beginPath();
+        ctx.moveTo(0, r.y);
+        ctx.lineTo(STAGE_W - 28, r.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Right-edge warning reticle box
+        const boxX = STAGE_W - 34;
+        const boxY = r.y - 16;
+        ctx.fillStyle = locked ? '#ff2e2e' : '#ff6b6b';
+        ctx.fillRect(boxX, boxY, 28, 32);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(boxX, boxY, 28, 32);
+        ctx.fillStyle = '#fff';
+        ctx.font = '900 18px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('!', boxX + 14, r.y + 6);
+        if (locked) {
+          ctx.font = 'bold 10px ui-monospace, monospace';
+          ctx.fillStyle = '#ff2e2e';
+          ctx.fillText('LOCK', boxX - 20, r.y + 4);
+        }
+        ctx.restore();
+      } else if (r.phase === 'firing') {
+        // Sleek pixel rocket missile
+        const rx = Math.round(r.x);
+        const ry = Math.round(r.y - r.h * 0.5);
+        // Nose cone
+        ctx.fillStyle = '#ff3838';
+        ctx.beginPath();
+        ctx.moveTo(rx, r.y);
+        ctx.lineTo(rx + 12, ry);
+        ctx.lineTo(rx + 12, ry + r.h);
+        ctx.closePath();
+        ctx.fill();
+        // Body
+        ctx.fillStyle = '#f1f2f6';
+        ctx.fillRect(rx + 12, ry + 1, r.w - 18, r.h - 2);
+        ctx.strokeStyle = '#2f3542';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(rx + 12, ry + 1, r.w - 18, r.h - 2);
+        // Stripes & fins
+        ctx.fillStyle = '#ff3838';
+        ctx.fillRect(rx + 20, ry + 2, 6, r.h - 4);
+        ctx.fillRect(rx + r.w - 8, ry - 4, 8, 5);
+        ctx.fillRect(rx + r.w - 8, ry + r.h - 1, 8, 5);
+        // Thruster flame
+        ctx.fillStyle = Math.random() > 0.4 ? '#ffa502' : '#ffdd59';
+        ctx.fillRect(rx + r.w - 4, ry + 4, rand(8, 16), r.h - 8);
+      }
+    }
+
+    // ---- Draw Giant Speaker Cannon & Sound Waves ----
+    for (const wv of state.speakerWaves) {
+      if (wv.kind === 'bass') {
+        // Pulsing orange-red Bass Arcs ")))"
+        ctx.save();
+        ctx.strokeStyle = '#ff6b35';
+        ctx.lineWidth = 4;
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath();
+          ctx.arc(wv.x + 24 - k * 8, wv.y + wv.h * 0.5, 10 + k * 6, Math.PI * 0.65, Math.PI * 1.35);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (wv.kind === 'treble') {
+        if (wv.phase === 'telegraph') {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(0, 210, 211, 0.78)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 6]);
+          ctx.beginPath();
+          ctx.moveTo(0, wv.y + wv.h * 0.5);
+          ctx.lineTo(STAGE_W - 60, wv.y + wv.h * 0.5);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#00a8ff';
+          ctx.font = 'bold 11px ui-monospace, monospace';
+          ctx.fillText('▼ DUCK TREBLE!', 260, wv.y - 6);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = 'rgba(0, 210, 211, 0.88)';
+          ctx.fillRect(0, wv.y, STAGE_W - 58, wv.h);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, wv.y + 5, STAGE_W - 58, wv.h - 10);
+        }
+      }
+    }
+
+    if (state.speaker) {
+      const sp = state.speaker;
+      const pulse = audio.beatPulse * 6;
+      const sy = FLOOR_Y - 126;
+      ctx.save();
+      ctx.fillStyle = '#222436';
+      ctx.strokeStyle = '#ff6b35';
+      ctx.lineWidth = 3;
+      ctx.fillRect(sp.x, sy, 58, 124);
+      ctx.strokeRect(sp.x, sy, 58, 124);
+      // Tweeter
+      ctx.fillStyle = '#00d2d3';
+      ctx.beginPath();
+      ctx.arc(sp.x + 29, sy + 28, 11 + pulse * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#181928';
+      ctx.beginPath();
+      ctx.arc(sp.x + 29, sy + 28, 5, 0, Math.PI * 2);
+      ctx.fill();
+      // Main subwoofer cone
+      ctx.fillStyle = '#ff6b35';
+      ctx.beginPath();
+      ctx.arc(sp.x + 29, sy + 82, 20 + pulse * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#181928';
+      ctx.beginPath();
+      ctx.arc(sp.x + 29, sy + 82, 10 + pulse * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ---- Draw Dino Afterimages (Rewind Curse) ----
+    const d = state.dino;
+    for (const img of d.afterimages) {
+      ctx.save();
+      ctx.globalAlpha = img.life * 2.1;
+      const mat = img.ducking ? DINO_DUCK_A : DINO_STAND_A;
+      const px = 2.2;
+      const h = mat.length * px;
+      const drawY = img.dir === 1 ? img.y - h : img.y;
+      drawPixelMatrix(mat, img.x, drawY, px, '#8c7ae6', bgCol, img.dir === -1);
+      ctx.restore();
+    }
+
+    // ---- Draw Immortal Dino ----
+    const blinkSkip = d.invuln > 0 && Math.floor(d.invuln * 22) % 2 === 0;
+    if (!blinkSkip) {
+      const stepFrame = Math.floor(d.runAnim) % 2 === 0;
+      const isDuck = d.ducking && d.grounded;
+      const mat = isDuck
+        ? (stepFrame ? DINO_DUCK_A : DINO_DUCK_B)
+        : (stepFrame ? DINO_STAND_A : DINO_STAND_B);
+      const px = 2.25;
+      const spriteH = mat.length * px;
+      const drawY = state.gravityDir === 1 ? d.y - spriteH : d.y;
+      const dinoCol = state.braking ? '#e04f26' : (d.hurtFace > 0 ? '#ff4757' : inkCol);
+
+      drawPixelMatrix(mat, d.x, drawY, px, dinoCol, bgCol, state.gravityDir === -1);
+
+      // Attached Acoustic Foam wedges on dino's back
+      if (state.foamCount > 0) {
+        ctx.fillStyle = '#57606f';
+        for (let k = 0; k < state.foamCount; k++) {
+          const fx = d.x + 6 + k * 9;
+          const fy = state.gravityDir === 1 ? drawY + 14 + (k % 2) * 5 : drawY + 18 + (k % 2) * 5;
+          ctx.beginPath();
+          ctx.moveTo(fx, fy);
+          ctx.lineTo(fx + 9, fy + 4);
+          ctx.lineTo(fx + 2, fy + 10);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Latched Mute Vacuum Drone + Suction Beam pulling from Top HUD!
+      if (state.latchedDrone) {
+        const dx = d.x + 8;
+        const dy = state.gravityDir === 1 ? drawY - 16 : drawY + spriteH + 2;
+        // Crackling suction beam from HUD Volume bar straight into drone
+        ctx.save();
+        ctx.strokeStyle = 'rgba(165, 94, 234, 0.78)';
+        ctx.lineWidth = 3 + Math.sin(state.latchedDrone.pulse) * 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(dx + 14, dy + 6);
+        ctx.lineTo(250, HUD_H);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Drone body on dino's back
+        ctx.fillStyle = '#2f3542';
+        ctx.fillRect(dx, dy, 28, 18);
+        ctx.strokeStyle = '#a55eea';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(dx, dy, 28, 18);
+        ctx.font = '13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔇', dx + 14, dy + 14);
+        ctx.fillStyle = '#a55eea';
+        ctx.font = 'bold 11px ui-monospace, monospace';
+        ctx.fillText('SLAM ↓!', dx + 14, dy - 6);
+        ctx.restore();
+      }
+    }
+
+    // ---- Draw Particles & Floating Texts ----
+    for (const p of state.particles) {
+      ctx.save();
+      ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - p.size * 0.5, p.y - p.size * 0.5, p.size, p.size);
+      ctx.restore();
+    }
+
+    for (const ft of state.floatingTexts) {
+      ctx.save();
+      ctx.globalAlpha = clamp(ft.life / ft.maxLife, 0, 1);
+      ctx.font = `900 ${Math.round(13 * ft.scale)}px ui-monospace, Menlo, monospace`;
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = na > 0.5 ? '#12131f' : '#ffffff';
+      ctx.lineWidth = 3.5;
+      ctx.strokeText(ft.text, ft.x, ft.y);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, ft.x, ft.y);
+      ctx.restore();
+    }
+
+    // ---- Center-Top Phase Alert Banner ----
+    if (state.banner) {
+      const b = state.banner;
+      const alpha = clamp(b.timer * 2.5, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = '900 15px ui-monospace, Menlo, monospace';
+      const tw = ctx.measureText(b.text).width + 26;
+      const bx = (STAGE_W - tw) * 0.5;
+      const by = HUD_H + 14;
+      ctx.fillStyle = b.color;
+      ctx.fillRect(bx, by, tw, 28);
+      ctx.strokeStyle = '#181928';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, tw, 28);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(b.text, STAGE_W * 0.5, by + 19);
+      ctx.restore();
+    }
+
+    // ---- Active Debuff Badges (Top-Left below HUD) ----
+    const badges = [];
+    if (state.foamCount > 0) badges.push({ label: `FOAM ×${state.foamCount} (JUMP!)`, bg: '#57606f' });
+    if (state.shushTimer > 0) badges.push({ label: `SHUSHED ${state.shushTimer.toFixed(1)}s`, bg: '#d4a017' });
+    if (state.rewindTimer > 0) badges.push({ label: `⏪ REWIND ${state.rewindTimer.toFixed(1)}s`, bg: '#6c5ce7' });
+    if (state.muffleTimer > 0) badges.push({ label: `MUFFLED ${state.muffleTimer.toFixed(1)}s`, bg: '#ff4757' });
+    if (state.gravityFlipTimer > 0) badges.push({ label: `↑↓ FLIP ${state.gravityFlipTimer.toFixed(1)}s`, bg: '#00a8a8' });
+
+    if (badges.length > 0) {
+      let bx = 12;
+      const by = HUD_H + 8;
+      ctx.font = 'bold 11px ui-monospace, monospace';
+      for (const bd of badges) {
+        const bw = ctx.measureText(bd.label).width + 14;
+        ctx.fillStyle = bd.bg;
+        ctx.fillRect(bx, by, bw, 20);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(bd.label, bx + 7, by + 14);
+        bx += bw + 6;
+      }
+    }
+
+    ctx.restore(); // End Playfield clip
+
+    // ---- Top HUD Bar (y: 0..58 — Always crisp & legible even on small screens!) ----
+    drawHud(na);
+
+    // ---- Flying Stolen/Reclaimed Volume Chunks (above HUD & playfield) ----
+    for (const hc of state.hudChunks) {
+      const cx = lerp(hc.x, hc.tx, hc.t);
+      const cy = lerp(hc.y, hc.ty, hc.t) - Math.sin(hc.t * Math.PI) * 32;
+      ctx.save();
+      ctx.fillStyle = hc.color;
+      ctx.fillRect(cx - 22, cy - 10, 44, 20);
+      ctx.fillStyle = '#fff';
+      ctx.font = '900 12px ui-monospace, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(hc.text, cx, cy + 4);
+      ctx.restore();
+    }
+
+    // ---- Victory Confetti ----
+    if (state.mode === 'finished' && state.finishConfetti.length > 0) {
+      for (const c of state.finishConfetti) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.rot);
+        ctx.fillStyle = c.color;
+        ctx.fillRect(-c.w * 0.5, -c.h * 0.5, c.w, c.h);
+        ctx.restore();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawHud(na) {
+    const hudBg = na > 0.5 ? '#121320' : '#1d1e2e';
+    ctx.fillStyle = hudBg;
+    ctx.fillRect(0, 0, STAGE_W, HUD_H);
+    ctx.fillStyle = '#353754';
+    ctx.fillRect(0, HUD_H - 2, STAGE_W, 2);
+
+    const hShakeX = state.hudShake > 0.2 ? rand(-state.hudShake, state.hudShake) : 0;
+    const hShakeY = state.hudShake > 0.2 ? rand(-state.hudShake * 0.4, state.hudShake * 0.4) : 0;
+
+    ctx.save();
+    ctx.translate(hShakeX, hShakeY);
+
+    const volInt = Math.round(state.volume);
+    const isSubMute = volInt < 0;
+
+    // Speaker icon
+    ctx.font = '24px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    const spk = isSubMute ? '🕳️' : volInt === 0 ? '🔇' : volInt < 35 ? '🔈' : volInt < 70 ? '🔉' : '🔊';
+    ctx.fillText(spk, 12, 37);
+
+    // Big bold Volume percentage
+    ctx.font = '900 30px ui-monospace, Menlo, Consolas, monospace';
+    ctx.fillStyle = isSubMute ? '#ff4757' : volInt >= 90 ? '#ffa502' : '#f7f7f7';
+    ctx.fillText(`${volInt}%`, 46, 39);
+
+    // Volume Bar Track
+    const barX = 148;
+    const barY = 14;
+    const barW = 412;
+    const barH = 26;
+
+    ctx.fillStyle = '#2d2f49';
+    ctx.fillRect(barX, barY, barW, barH);
+
+    // Sub-mute warning or normal progress fill
+    if (state.visualVolume < 0) {
+      const subFrac = clamp(Math.abs(state.visualVolume) / 15, 0, 1);
+      ctx.fillStyle = '#cf2636';
+      ctx.fillRect(barX, barY, Math.max(8, barW * 0.28 * subFrac), barH);
+      ctx.fillStyle = '#ff9aa2';
+      ctx.font = 'bold 11px ui-monospace, monospace';
+      ctx.fillText('SUB-MUTE: ABSORBING ROOM NOISE', barX + 12, barY + 17);
+    } else {
+      const fillW = (clamp(state.visualVolume, 0, 100) / 100) * barW;
+      const barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+      barGrad.addColorStop(0, '#2ed573');
+      barGrad.addColorStop(0.55, '#ffa502');
+      barGrad.addColorStop(0.88, '#ff4757');
+      barGrad.addColorStop(1, '#ff1e56');
+      ctx.fillStyle = state.rewindTimer > 0 ? '#8c7ae6' : barGrad;
+      ctx.fillRect(barX, barY, fillW, barH);
+
+      // Elastic tension zone highlight (95%..100%)
+      const z95 = barX + barW * 0.95;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.fillRect(z95, barY, barW * 0.05, barH);
+    }
+
+    // Tick marks at 25%, 50%, 75%
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    for (const mark of [0.25, 0.5, 0.75]) {
+      ctx.fillRect(barX + Math.round(barW * mark), barY, 2, barH);
+    }
+
+    // HUD hit/reclaim flash outline
+    ctx.strokeStyle = state.hudFlash > 0 ? state.hudFlashColor : '#585c87';
+    ctx.lineWidth = state.hudFlash > 0 ? 3 : 2;
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    // Subtle bar labels underneath
+    ctx.fillStyle = '#8d90b8';
+    ctx.font = 'bold 9px ui-monospace, monospace';
+    ctx.fillText('0%', barX, barY + barH + 10);
+    ctx.fillText('50% ROCKETS', barX + barW * 0.5 - 32, barY + barH + 10);
+    ctx.fillText('100%', barX + barW - 22, barY + barH + 10);
+
+    ctx.restore();
+
+    // Right side: Elapsed Timer + Phase Pill
+    const mins = Math.floor(state.elapsed / 60);
+    const secs = (state.elapsed % 60).toFixed(1).padStart(4, '0');
+    ctx.font = '900 21px ui-monospace, Menlo, Consolas, monospace';
+    ctx.fillStyle = '#f3f1ea';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${mins}:${secs}`, STAGE_W - 14, 27);
+
+    const phase = getPhaseLabel(state.elapsed);
+    ctx.font = 'bold 11px ui-monospace, monospace';
+    const pillW = Math.max(94, ctx.measureText(phase).width + 16);
+    const pillX = STAGE_W - 14 - pillW;
+    ctx.fillStyle = phase === 'ROCKET LOCK' || phase === 'FINAL SPRINT'
+      ? '#c0392b'
+      : phase === 'GRAVITY FLIP'
+        ? '#008b8b'
+        : phase === 'BASS CLIPPING'
+          ? '#d35400'
+          : phase === 'OVERTIME'
+            ? '#b7791f'
+            : '#353754';
+    ctx.fillRect(pillX, 33, pillW, 18);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText(phase, pillX + pillW * 0.5, 46);
+    ctx.textAlign = 'left';
+  }
+
+  // ---- Animation Loop ----
+  let lastTs = performance.now();
+  function loop(ts) {
+    const dt = Math.min(0.05, Math.max(0.001, (ts - lastTs) / 1000));
+    lastTs = ts;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+})();
