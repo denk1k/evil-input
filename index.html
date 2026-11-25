@@ -14,17 +14,17 @@
       <!-- Floating Neighbor Sticky Notes -->
       <div id="sticky-layer" aria-hidden="true"></div>
 
-      <!-- Fake OS Hearing Safety Modal -->
-      <div id="hearing-modal" class="os-modal hidden" role="dialog" aria-label="Hearing safety warning">
+      <!-- Fake Evil Club HR Hearing Safety Modal -->
+      <div id="hearing-modal" class="os-modal hidden" role="dialog" aria-label="Evil Club HR Audio Compliance">
         <div class="os-modal-bar">
-          <span class="os-modal-title">⚠ System Audio Guard</span>
-          <button type="button" class="os-close-x" id="modal-close-x" aria-label="Dismiss">×</button>
+          <span class="os-modal-title">⚠ EVIL CLUB HR — AUDIO COMPLIANCE</span>
+          <button type="button" class="os-close-x" id="modal-close-x" aria-label="Close warning">×</button>
         </div>
         <div class="os-modal-body">
-          <p class="os-modal-msg">Listening at high volume may damage your hearing (and annoy Apt 4B).</p>
+          <p class="os-modal-msg">High volume may damage your hearing (and annoy your neighbours). Evil Club accepts zero liability.</p>
           <div class="os-modal-actions">
             <button type="button" class="os-btn os-btn-trap" id="modal-lower-btn">Lower Volume</button>
-            <button type="button" class="os-btn os-btn-primary" id="modal-dismiss-btn">Dismiss</button>
+            <button type="button" class="os-btn os-btn-primary" id="modal-dismiss-btn">Ignore HR</button>
           </div>
         </div>
       </div>
@@ -44,7 +44,7 @@
           </button>
         </div>
 
-        <div class="strip-hint" id="strip-hint">DON'T DIE (YOU CAN'T) · HIT 100% OR HOLD BRAKE TO LOCK</div>
+        <div class="strip-hint" id="strip-hint">HIT 100% OR HOLD BRAKE TO LOCK</div>
 
         <button type="button" id="btn-brake" class="ctrl-btn ctrl-brake" aria-label="Hold to brake and lock current volume">
           <span class="brake-fill" id="brake-fill"></span>
@@ -58,17 +58,17 @@
       <!-- Start Overlay -->
       <div id="start-overlay" class="overlay-card-wrap">
         <div class="overlay-card start-card">
-          <div class="card-badge">EVIL VOLUME CONTROL</div>
+          <div class="card-badge">EVIL CLUB · VOLUME DEPT.</div>
           <h1 class="card-title">THE DINO</h1>
           <p class="card-desc">
-            Run to raise volume from <strong>0% → 100%</strong>. You <strong>cannot die</strong>—cacti, pickpocket birds, rockets, mute drones &amp; angry neighbors steal, spill, or reverse your sound.
+            Welcome to <strong>Evil Club</strong>. Run to crank volume from <strong>0% → 100%</strong>. You <strong>cannot die</strong>—only suffer as cacti, pickpocket birds, rockets, mute drones &amp; your neighbours sabotage your sound.
           </p>
           <div class="card-keys">
             <span><b>SPACE / ▲</b> Jump</span>
             <span><b>↓ / ▼</b> Duck &amp; Slam</span>
             <span><b>HOLD B</b> Brake &amp; Set</span>
           </div>
-          <button type="button" id="btn-start" class="primary-cta">START RUNNING (0%)</button>
+          <button type="button" id="btn-start" class="primary-cta">START SUFFERING (0%)</button>
         </div>
       </div>
 
@@ -86,6 +86,18 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Optional thumb-sized touch deck shown ONLY on narrow portrait phones -->
+  <div id="mobile-deck" aria-label="Mobile touch controls">
+    <div class="mobile-deck-row">
+      <button type="button" id="m-btn-jump" class="mobile-pad mobile-pad-jump" aria-label="Jump">▲ JUMP</button>
+      <button type="button" id="m-btn-duck" class="mobile-pad mobile-pad-duck" aria-label="Duck or Slam">▼ DUCK / SLAM</button>
+    </div>
+    <button type="button" id="m-btn-brake" class="mobile-pad mobile-pad-brake" aria-label="Hold to brake and lock volume">
+      <span class="brake-fill" id="m-brake-fill"></span>
+      <span class="brake-content">HOLD TO BRAKE &amp; SET VOLUME</span>
+    </button>
   </div>
 
   <script src="audio.js"></script>

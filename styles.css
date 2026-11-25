@@ -1,5 +1,6 @@
-/* Decibel Dino — scoped cleanly inside the exact 800x400 #stage,
-   with automatic uniform scale-down for phones & narrow viewports. */
+/* THE DINO — Evil Club Edition
+   Scoped cleanly inside the exact 800x400 #stage, with responsive scaling
+   for big desktop screens and small phones. */
 
 * {
   box-sizing: border-box;
@@ -12,8 +13,8 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #292b47;
-  color: #eceae3;
+  background: radial-gradient(circle at 50% 40%, #2b0b12 0%, #140508 75%, #0c0204 100%);
+  color: #f7ecee;
   font: 15px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   display: flex;
   flex-direction: column;
@@ -30,10 +31,10 @@ html, body {
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(255, 46, 76, 0.38);
 }
 
-/* On exact 800x400 gallery embeds, remove outer shadow seamlessly */
+/* On exact 800x400 gallery embeds, remove outer glow/border seamlessly */
 @media (max-width: 800px), (max-height: 400px) {
   #stage-shell {
     box-shadow: none;
@@ -46,8 +47,8 @@ html, body {
   overflow: hidden;
   position: relative;
   transform-origin: top left;
-  background: #f7f7f7;
-  color: #2b2b2b;
+  background: #faf0f1;
+  color: #2b0c12;
   touch-action: none;
 }
 
@@ -55,11 +56,10 @@ html, body {
   display: block;
   width: 800px;
   height: 400px;
-  image-rendering: pixelated;
   touch-action: none;
 }
 
-/* ---- Sticky Notes (Neighbor Noise Complaints) ---- */
+/* ---- Sticky Notes (Neighbour Noise Complaints) ---- */
 #sticky-layer {
   position: absolute;
   inset: 58px 0 56px 0;
@@ -70,12 +70,12 @@ html, body {
 
 .sticky-note {
   position: absolute;
-  width: 174px;
+  width: 182px;
   padding: 10px 12px 12px;
-  background: rgba(255, 236, 117, 0.93);
-  color: #221d0c;
-  border: 2px solid #d4b12a;
-  box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.22);
+  background: rgba(255, 232, 163, 0.95);
+  color: #260b0f;
+  border: 2px solid #c92a3e;
+  box-shadow: 4px 5px 0 rgba(36, 5, 11, 0.34);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.25;
@@ -91,15 +91,15 @@ html, body {
   transform: translateX(-50%);
   width: 44px;
   height: 12px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 46, 76, 0.48);
+  border: 1px solid rgba(120, 12, 28, 0.25);
 }
 
 .sticky-note .sticky-title {
   display: block;
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.04em;
-  color: #b82121;
+  color: #c21830;
   margin-bottom: 3px;
 }
 
@@ -113,16 +113,16 @@ html, body {
   to { opacity: 1; }
 }
 
-/* ---- Fake OS Hearing Safety Modal ---- */
+/* ---- Fake Evil Club HR Hearing Safety Modal ---- */
 .os-modal {
   position: absolute;
   top: 76px;
   left: 330px;
-  width: 340px;
-  background: #ece9d8;
-  color: #181818;
-  border: 2px solid #2b4e9e;
-  box-shadow: 6px 8px 0 rgba(0, 0, 0, 0.35);
+  width: 348px;
+  background: #fdf4f5;
+  color: #1f090d;
+  border: 2.5px solid #9e1429;
+  box-shadow: 6px 8px 0 rgba(20, 4, 8, 0.48);
   z-index: 20;
   font-family: system-ui, -apple-system, sans-serif;
   animation: modalSlide 0.22s ease-out both;
@@ -141,18 +141,19 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(90deg, #1d4eb8, #3b74e8);
+  background: linear-gradient(90deg, #8f0f24, #d61f3c);
   color: #fff;
   padding: 6px 10px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .os-close-x {
   width: 26px;
   height: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  background: #d94136;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: #420711;
   color: #fff;
   font-weight: 900;
   font-size: 16px;
@@ -165,7 +166,7 @@ html, body {
 }
 
 .os-close-x:hover, .os-close-x:active {
-  background: #f05145;
+  background: #6b0d1d;
 }
 
 .os-modal-body {
@@ -176,7 +177,7 @@ html, body {
   margin: 0 0 12px;
   font-size: 13px;
   line-height: 1.35;
-  color: #1f1f1f;
+  color: #290c11;
 }
 
 .os-modal-actions {
@@ -190,27 +191,27 @@ html, body {
   padding: 9px 14px;
   border-radius: 4px;
   cursor: pointer;
-  border: 1.5px solid #555;
+  border: 1.5px solid #6b1d29;
   min-height: 36px;
 }
 
 .os-btn-trap {
-  background: #e1ded1;
-  color: #3a3a3a;
+  background: #eddadc;
+  color: #4a1921;
 }
 
 .os-btn-trap:hover {
-  background: #d4d0be;
+  background: #e0c4c8;
 }
 
 .os-btn-primary {
-  background: #2763d9;
-  border-color: #17439c;
+  background: #d61f3c;
+  border-color: #7d0d1f;
   color: #fff;
 }
 
 .os-btn-primary:hover {
-  background: #1d53be;
+  background: #b5152e;
 }
 
 /* ---- Bottom Interactive Control Strip (y: 344..400) ---- */
@@ -221,8 +222,8 @@ html, body {
   bottom: 0;
   height: 56px;
   padding: 7px 12px;
-  background: #1d1e2e;
-  border-top: 2px solid #353754;
+  background: #1a080c;
+  border-top: 2px solid #5c1623;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -241,9 +242,9 @@ html, body {
   height: 40px;
   padding: 0 11px;
   border-radius: 6px;
-  border: 2px solid #4d5078;
-  background: #2c2e47;
-  color: #f3f1ea;
+  border: 2px solid #7d1c2d;
+  background: #2e0d14;
+  color: #fff0f2;
   font: 700 13px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   display: inline-flex;
   align-items: center;
@@ -257,28 +258,30 @@ html, body {
 .ctrl-btn:active,
 .ctrl-btn.active {
   transform: translateY(1px) scale(0.98);
-  background: #43466d;
-  border-color: #8f94d6;
+  background: #541422;
+  border-color: #ff5c77;
 }
 
 .ctrl-jump {
-  border-color: #5b8def;
+  border-color: #ff2e4c;
+  background: #380e17;
 }
 
 .ctrl-jump.active,
 .ctrl-jump:active {
-  background: #2f55a4;
-  border-color: #9bbdff;
+  background: #9e142a;
+  border-color: #ff8093;
 }
 
 .ctrl-duck {
-  border-color: #7d6be0;
+  border-color: #c92a6d;
+  background: #300d1e;
 }
 
 .ctrl-duck.active,
 .ctrl-duck:active {
-  background: #4e3fa3;
-  border-color: #b7a8ff;
+  background: #801544;
+  border-color: #ff78b2;
 }
 
 .btn-icon {
@@ -290,8 +293,8 @@ html, body {
   font-size: 10px;
   padding: 2px 5px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.14);
-  color: #d6d4ea;
+  background: rgba(255, 220, 226, 0.14);
+  color: #f7cfd6;
   letter-spacing: 0.03em;
 }
 
@@ -301,7 +304,7 @@ html, body {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #a9a7c4;
+  color: #d496a1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -310,15 +313,15 @@ html, body {
 .ctrl-brake {
   min-width: 196px;
   justify-content: center;
-  border-color: #e66b3c;
-  background: #3d2224;
+  border-color: #ff6b2b;
+  background: #40130c;
   padding: 0 12px;
 }
 
 .ctrl-brake.active,
 .ctrl-brake:active {
-  border-color: #ff9f66;
-  background: #542824;
+  border-color: #ffa066;
+  background: #631d10;
 }
 
 .brake-fill {
@@ -327,7 +330,7 @@ html, body {
   top: 0;
   bottom: 0;
   width: 0%;
-  background: linear-gradient(90deg, #e04f26, #ff9933);
+  background: linear-gradient(90deg, #cf1733, #ff5e2b, #ff9933);
   pointer-events: none;
   z-index: 0;
 }
@@ -344,7 +347,7 @@ html, body {
 .overlay-card-wrap {
   position: absolute;
   inset: 0 0 56px 0;
-  background: rgba(24, 25, 40, 0.72);
+  background: rgba(24, 5, 9, 0.78);
   backdrop-filter: blur(2px);
   display: grid;
   place-items: center;
@@ -358,12 +361,12 @@ html, body {
 
 .overlay-card {
   width: 100%;
-  max-width: 520px;
-  background: #f7f7f7;
-  color: #262626;
-  border: 3px solid #262626;
-  box-shadow: 7px 7px 0 #151624;
-  padding: 18px 22px 20px;
+  max-width: 530px;
+  background: #fcf2f3;
+  color: #24090e;
+  border: 3px solid #2b080e;
+  box-shadow: 7px 7px 0 #8a0f24;
+  padding: 17px 22px 19px;
   text-align: center;
 }
 
@@ -371,41 +374,41 @@ html, body {
   display: inline-block;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  padding: 3px 9px;
-  background: #262626;
-  color: #f7f7f7;
+  letter-spacing: 0.11em;
+  padding: 3px 10px;
+  background: #b8142f;
+  color: #fff5f6;
   margin-bottom: 6px;
 }
 
 .card-title {
-  margin: 0 0 8px;
-  font-size: 32px;
+  margin: 0 0 7px;
+  font-size: 33px;
   line-height: 1.05;
-  letter-spacing: 0.05em;
-  color: #1c1c1c;
+  letter-spacing: 0.06em;
+  color: #1f060a;
 }
 
 .card-desc {
   margin: 0 0 12px;
   font-size: 13px;
   line-height: 1.45;
-  color: #3b3b3b;
+  color: #42171e;
 }
 
 .card-keys {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px 14px;
+  gap: 8px 12px;
   margin-bottom: 14px;
   font-size: 12px;
-  color: #333;
+  color: #360f16;
 }
 
 .card-keys span {
-  background: #e6e5de;
-  border: 1.5px solid #b8b6ad;
+  background: #f2dfe2;
+  border: 1.5px solid #cf9ea7;
   padding: 4px 8px;
   border-radius: 4px;
 }
@@ -415,21 +418,21 @@ html, body {
   letter-spacing: 0.05em;
   padding: 12px 24px;
   min-height: 44px;
-  background: #ff4757;
+  background: #e01b39;
   color: #fff;
-  border: 2.5px solid #262626;
-  box-shadow: 3px 3px 0 #262626;
+  border: 2.5px solid #26070c;
+  box-shadow: 3px 3px 0 #26070c;
   cursor: pointer;
   transition: transform 0.07s ease, box-shadow 0.07s ease, background 0.1s ease;
 }
 
 .primary-cta:hover {
-  background: #ff2e42;
+  background: #ff2647;
 }
 
 .primary-cta:active {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 #262626;
+  box-shadow: 1px 1px 0 #26070c;
 }
 
 /* Result Card specifics */
@@ -451,22 +454,22 @@ html, body {
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.02em;
-  color: #181818;
+  color: #21070c;
 }
 
 .result-vol.sub-mute {
-  color: #cf2636;
+  color: #b8142f;
 }
 
 .result-vol.max-vol {
-  color: #e64219;
+  color: #e01b39;
 }
 
 .result-quip {
   margin: 0 0 12px;
   font-size: 13px;
   font-weight: 700;
-  color: #444;
+  color: #4f1c25;
 }
 
 .result-stats {
@@ -477,8 +480,8 @@ html, body {
 }
 
 .stat-pill {
-  background: #e8e7e0;
-  border: 1.5px solid #c4c2b8;
+  background: #f2dfe2;
+  border: 1.5px solid #d4a3ac;
   padding: 6px 4px;
   border-radius: 4px;
 }
@@ -486,12 +489,12 @@ html, body {
 .stat-pill b {
   display: block;
   font-size: 16px;
-  color: #1a1a1a;
+  color: #24080d;
 }
 
 .stat-pill span {
   font-size: 10px;
-  color: #555;
+  color: #692e38;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -519,9 +522,9 @@ html, body {
   position: relative;
   height: 58px;
   border-radius: 10px;
-  border: 2px solid #4d5078;
-  background: #23253b;
-  color: #f3f1ea;
+  border: 2px solid #8a1d30;
+  background: #2b0b12;
+  color: #fff0f2;
   font: 800 15px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   letter-spacing: 0.04em;
   display: flex;
@@ -539,32 +542,32 @@ html, body {
 }
 
 .mobile-pad-jump {
-  border-color: #5b8def;
-  background: #233863;
+  border-color: #ff2e4c;
+  background: #420e1a;
 }
 
 .mobile-pad-jump.active {
-  background: #355cb0;
+  background: #9e142a;
 }
 
 .mobile-pad-duck {
-  border-color: #7d6be0;
-  background: #332a63;
+  border-color: #c92a6d;
+  background: #380d22;
 }
 
 .mobile-pad-duck.active {
-  background: #5343a6;
+  background: #801544;
 }
 
 .mobile-pad-brake {
   width: 100%;
   height: 50px;
-  border-color: #e66b3c;
-  background: #3d2224;
+  border-color: #ff6b2b;
+  background: #42140c;
 }
 
 .mobile-pad-brake.active {
-  border-color: #ff9f66;
+  border-color: #ffa066;
 }
 
 @media (max-width: 760px) and (min-height: 460px) {

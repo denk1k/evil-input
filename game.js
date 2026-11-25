@@ -14,8 +14,10 @@
   const MAX_VOL = 100;
   const BRAKE_DURATION = 1.5;
 
-  // ---- Pixel Art Sprite Matrices (1 = primary ink, 2 = eye/cutout, 3 = accent) ----
+  // ---- Pixel Art Sprite Matrices (1 = primary ink, 2 = glowing eye, 3 = crimson devil horns) ----
   const DINO_STAND_A = [
+    '       3       3  ',
+    '       33     33  ',
     '        11111111  ',
     '       1111111111 ',
     '       1121111111 ',
@@ -38,6 +40,8 @@
   ];
 
   const DINO_STAND_B = [
+    '       3       3  ',
+    '       33     33  ',
     '        11111111  ',
     '       1111111111 ',
     '       1121111111 ',
@@ -60,6 +64,8 @@
   ];
 
   const DINO_DUCK_A = [
+    '             3       3  ',
+    '             33     33  ',
     '              11111111  ',
     '1            1111111111 ',
     '11  1111111111112111111 ',
@@ -74,6 +80,8 @@
   ];
 
   const DINO_DUCK_B = [
+    '             3       3  ',
+    '             33     33  ',
     '              11111111  ',
     '1            1111111111 ',
     '11  1111111111112111111 ',
@@ -116,8 +124,8 @@
   const NEIGHBOR_QUIPS = [
     'KEEP IT DOWN!',
     "IT'S 11 PM!",
-    'CALLING LANDLORD!',
-    'MY BABY IS SLEEPING!',
+    'CALLING EVIL HR!',
+    'MY CAT IS SHAKING!',
     'TURN THAT DOWN!'
   ];
 
@@ -126,6 +134,9 @@
   const stageEl = document.getElementById('stage');
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
+  const CANVAS_DPR = 2;
+  canvas.width = STAGE_W * CANVAS_DPR;
+  canvas.height = STAGE_H * CANVAS_DPR;
 
   const stickyLayer = document.getElementById('sticky-layer');
   const hearingModal = document.getElementById('hearing-modal');
@@ -139,6 +150,12 @@
   const brakeFillEl = document.getElementById('brake-fill');
   const stripHintEl = document.getElementById('strip-hint');
 
+  const mobileDeckEl = document.getElementById('mobile-deck');
+  const mBtnJump = document.getElementById('m-btn-jump');
+  const mBtnDuck = document.getElementById('m-btn-duck');
+  const mBtnBrake = document.getElementById('m-btn-brake');
+  const mBrakeFillEl = document.getElementById('m-brake-fill');
+
   const startOverlay = document.getElementById('start-overlay');
   const btnStart = document.getElementById('btn-start');
   const resultOverlay = document.getElementById('result-overlay');
@@ -151,12 +168,23 @@
 
   const audio = new window.AudioEngine();
 
-  // ---- Responsive Small-Screen Stage Scaling ----
+  function setBrakeFill(pct) {
+    const w = `${pct}%`;
+    brakeFillEl.style.width = w;
+    if (mBrakeFillEl) mBrakeFillEl.style.width = w;
+  }
+
+  // ---- Responsive Stage Scaling (1:1 in 800x400 gallery, scales up on big screens, scales down on phones) ----
   function updateStageScale() {
     const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    const scale = Math.min(1, vw / STAGE_W, vh / STAGE_H);
-    if (scale < 0.999) {
+    const deckVisible = mobileDeckEl && window.getComputedStyle(mobileDeckEl).display !== 'none';
+    const availH = deckVisible ? Math.max(160, vh - mobileDeckEl.offsetHeight) : vh;
+    const fitScale = Math.min(vw / STAGE_W, availH / STAGE_H);
+    const scale = (vw > STAGE_W && availH > STAGE_H)
+      ? Math.max(1, Math.min(2.2, fitScale * 0.94))
+      : fitScale;
+    if (Math.abs(scale - 1) > 0.002) {
       stageEl.style.transform = `scale(${scale})`;
       stageShell.style.width = `${Math.floor(STAGE_W * scale)}px`;
       stageShell.style.height = `${Math.floor(STAGE_H * scale)}px`;
@@ -376,7 +404,7 @@
     const note = document.createElement('div');
     note.className = 'sticky-note';
     const quip = NEIGHBOR_QUIPS[Math.floor(Math.random() * NEIGHBOR_QUIPS.length)];
-    note.innerHTML = `<span class="sticky-title">APT 4B COMPLAINT (-${penalty}%)</span>${quip}`;
+    note.innerHTML = `<span class="sticky-title">NEIGHBOUR COMPLAINT (-${penalty}%)</span>${quip}`;
     const left = Math.floor(rand(275, 535));
     const top = Math.floor(rand(22, 130));
     const rot = rand(-7, 7).toFixed(1);
@@ -463,9 +491,9 @@
     input.jumpBuffer = 0;
     startOverlay.classList.add('hidden');
     resultOverlay.classList.add('hidden');
-    brakeFillEl.style.width = '0%';
-    stripHintEl.textContent = 'DON\'T DIE (YOU CAN\'T) · HIT 100% OR HOLD BRAKE TO LOCK';
-    showBanner('RUN TO RAISE VOLUME!', '#2f55a4', 1.5);
+    setBrakeFill(0);
+    stripHintEl.textContent = 'HIT 100% OR HOLD BRAKE TO LOCK';
+    showBanner('WELCOME TO EVIL CLUB — RUN!', '#d61f3c', 1.6);
   }
 
   function finishRun(reason) {
@@ -481,8 +509,8 @@
 
     if (reason === '100') {
       audio.playVictory100();
-      // Spawn victory confetti inside canvas
-      const palette = ['#ff4757', '#ffa502', '#2ed573', '#1e90ff', '#a55eea', '#ffdd59'];
+      // Spawn Evil Club crimson & ember confetti inside canvas
+      const palette = ['#ff2e4c', '#b8142f', '#ff6b2b', '#ffdd59', '#24070d', '#ffffff'];
       for (let i = 0; i < 85; i++) {
         state.finishConfetti.push({
           x: rand(60, STAGE_W - 60),
@@ -503,31 +531,31 @@
     // Populate Result Overlay
     resultVol.classList.remove('sub-mute', 'max-vol');
     if (reason === '100') {
-      resultBadge.textContent = '100% VOLUME ACHIEVED';
+      resultBadge.textContent = 'EVIL CLUB APPROVED · 100%';
       resultSpeaker.textContent = '🔊';
       resultVol.textContent = '100%';
       resultVol.classList.add('max-vol');
       resultQuip.textContent = state.elapsed <= 35
-        ? 'Blazing run! Your neighbors have already filed a noise complaint.'
-        : 'Survived overtime chaos to reach glorious maximum decibels.';
+        ? 'Evil Club salutes you. Your neighbours have already called the authorities.'
+        : 'Survived overtime torment to reach glorious maximum decibels.';
     } else if (finalVol < 0) {
       resultBadge.textContent = 'SUB-MUTE LOCKED';
       resultSpeaker.textContent = '🕳️';
       resultVol.textContent = `${finalVol}%`;
       resultVol.classList.add('sub-mute');
-      resultQuip.textContent = 'Your speakers are now actively vacuuming sound out of the room.';
+      resultQuip.textContent = 'Your speakers are actively vacuuming sound from the room. Truly evil.';
     } else if (finalVol === 0) {
       resultBadge.textContent = 'MUTE LOCKED';
       resultSpeaker.textContent = '🔇';
       resultVol.textContent = '0%';
-      resultQuip.textContent = 'All that sprinting just to keep it muted.';
+      resultQuip.textContent = 'All that torment just to leave it muted. Respect.';
     } else {
-      resultBadge.textContent = 'VOLUME LOCKED BY BRAKE';
+      resultBadge.textContent = 'VOLUME LOCKED (MERCY?)';
       resultSpeaker.textContent = finalVol >= 66 ? '🔊' : finalVol >= 30 ? '🔉' : '🔈';
       resultVol.textContent = `${finalVol}%`;
       resultQuip.textContent = state.rocketsEaten > 0
-        ? `Screeched to a halt! (You ate ${state.rocketsEaten} rocket${state.rocketsEaten === 1 ? '' : 's'} for this.)`
-        : `Screeched to a halt and locked ${finalVol}% right before disaster.`;
+        ? `Screeched to a halt! (You ate ${state.rocketsEaten} rocket${state.rocketsEaten === 1 ? '' : 's'} for Evil Club.)`
+        : `Screeched to a halt at ${finalVol}%. Evil Club expected more suffering.`;
     }
 
     resultStats.innerHTML = `
@@ -551,11 +579,13 @@
     input.jumpHeld = true;
     input.jumpBuffer = 0.095;
     btnJump.classList.add('active');
+    if (mBtnJump) mBtnJump.classList.add('active');
   }
 
   function triggerJumpUp() {
     input.jumpHeld = false;
     btnJump.classList.remove('active');
+    if (mBtnJump) mBtnJump.classList.remove('active');
     if (state.mode !== 'playing') return;
     // Variable jump height cut when releasing early while moving away from surface
     const d = state.dino;
@@ -569,6 +599,7 @@
     if (state.mode !== 'playing') return;
     input.duckHeld = true;
     btnDuck.classList.add('active');
+    if (mBtnDuck) mBtnDuck.classList.add('active');
     const d = state.dino;
     if (!d.grounded) {
       d.slamming = true;
@@ -582,6 +613,7 @@
     input.duckHeld = false;
     state.dino.ducking = false;
     btnDuck.classList.remove('active');
+    if (mBtnDuck) mBtnDuck.classList.remove('active');
   }
 
   function triggerBrakeDown() {
@@ -589,11 +621,13 @@
     if (state.mode !== 'playing') return;
     input.brakeHeld = true;
     btnBrake.classList.add('active');
+    if (mBtnBrake) mBtnBrake.classList.add('active');
   }
 
   function triggerBrakeUp() {
     input.brakeHeld = false;
     btnBrake.classList.remove('active');
+    if (mBtnBrake) mBtnBrake.classList.remove('active');
   }
 
   // Keyboard bindings
@@ -652,6 +686,9 @@
   bindHoldButton(btnJump, triggerJumpDown, triggerJumpUp);
   bindHoldButton(btnDuck, triggerDuckDown, triggerDuckUp);
   bindHoldButton(btnBrake, triggerBrakeDown, triggerBrakeUp);
+  if (mBtnJump) bindHoldButton(mBtnJump, triggerJumpDown, triggerJumpUp);
+  if (mBtnDuck) bindHoldButton(mBtnDuck, triggerDuckDown, triggerDuckUp);
+  if (mBtnBrake) bindHoldButton(mBtnBrake, triggerBrakeDown, triggerBrakeUp);
 
   // Direct canvas tap = jump, quick swipe down = duck/slam
   canvas.addEventListener('pointerdown', (e) => {
@@ -694,7 +731,7 @@
     audio.init();
     hideHearingModal();
     audio.playPopup();
-    addFloatingText(460, 128, 'SAFETY IGNORED!', '#2763d9', 1.0);
+    addFloatingText(460, 128, 'HR IGNORED!', '#ff2e4c', 1.0);
   }
   modalDismissBtn.addEventListener('click', dismissHearingModal);
   modalCloseX.addEventListener('click', dismissHearingModal);
@@ -904,11 +941,11 @@
     if (state.gravityFlipTimer > 0) return 'GRAVITY FLIP';
     if (state.speaker) return 'BASS CLIPPING';
     if (t >= 35) return 'OVERTIME';
-    if (t >= 29) return 'FINAL SPRINT';
+    if (t >= 29) return 'FINAL TORMENT';
     if (t >= 15) return 'ROCKET LOCK';
     if (t >= 10) return 'NOISE ALERT';
     if (t >= 5) return 'PICKPOCKETS';
-    return 'WARMUP';
+    return 'INITIATION';
   }
 
   function updateDirector(dt) {
@@ -921,7 +958,7 @@
     if (!state.milestones.night1 && t >= 7.5) {
       state.milestones.night1 = true;
       state.nightTimer = 3.2;
-      showBanner('☾ NIGHT MODE FLICKER', '#7b8cde', 1.4);
+      showBanner('🩸 BLOOD MOON MODE', '#d61f3c', 1.5);
     }
 
     if (!state.milestones.modal1 && t >= 12.0) {
@@ -1153,14 +1190,14 @@
         });
       }
       if (state.brakeProgress >= 1) {
-        brakeFillEl.style.width = '100%';
+        setBrakeFill(100);
         finishRun('braked');
         return;
       }
     } else {
       state.brakeProgress = Math.max(0, state.brakeProgress - dt * 1.4);
     }
-    brakeFillEl.style.width = `${Math.round(state.brakeProgress * 100)}%`;
+    setBrakeFill(Math.round(state.brakeProgress * 100));
 
     // ---- Passive Volume Gain & Latched Drone Drain ----
     let passiveRate = 0;
@@ -1317,6 +1354,22 @@
     for (const gd of state.groundDots) {
       gd.x -= state.speed * dt;
       if (gd.x < -12) gd.x += STAGE_W + 30;
+    }
+
+    // Rising Evil Club crimson embers as volume / chaos intensifies
+    const emberChance = state.speaker ? 0.55 : (state.nightAlpha > 0.3 ? 0.35 : (state.volume >= 45 ? ((state.volume - 40) / 140) : 0.04));
+    if (Math.random() < emberChance) {
+      state.particles.push({
+        x: rand(20, STAGE_W - 20),
+        y: FLOOR_Y - 2,
+        vx: -rand(35, 95),
+        vy: -rand(40, 115),
+        size: rand(2, 4.5),
+        color: Math.random() > 0.35 ? '#ff2e4c' : '#ff7b3b',
+        life: rand(0.65, 1.35),
+        maxLife: 1.35,
+        gravity: -20
+      });
     }
 
     // ---- Director Spawning ----
@@ -1748,34 +1801,39 @@
       latchedDrone: state.latchedDrone
     });
 
-    // Dynamic bottom strip hint for contextual feedback
+    // Dynamic bottom strip hint (kept concise so it never clips inside 800px)
     if (state.latchedDrone) {
-      stripHintEl.textContent = '⚠ MUTE DRONE LATCHED — JUMP + PRESS ↓ TO SLAM IT OFF!';
+      stripHintEl.textContent = '⚠ DRONE! JUMP + ↓ TO SLAM OFF!';
     } else if (state.foamCount > 0) {
-      stripHintEl.textContent = `FOAM MUFFLING (${state.foamCount} LEFT) — JUMP TO SHAKE IT OFF!`;
+      stripHintEl.textContent = `FOAM ×${state.foamCount} — JUMP TO SHAKE OFF!`;
     } else if (state.braking) {
-      stripHintEl.textContent = `SCREECHING TO LOCK ${Math.round(state.volume)}% — DODGE UNTIL FULL!`;
+      stripHintEl.textContent = `LOCKING ${Math.round(state.volume)}% — KEEP DODGING!`;
     } else if (state.volume >= 94) {
-      stripHintEl.textContent = 'ALMOST 100%! PUSH THROUGH THE ELASTIC FINAL STRETCH!';
+      stripHintEl.textContent = 'ALMOST 100%! PUSH THROUGH!';
     } else {
-      stripHintEl.textContent = 'DON\'T DIE (YOU CAN\'T) · HIT 100% OR HOLD BRAKE TO LOCK';
+      stripHintEl.textContent = 'HIT 100% OR HOLD BRAKE TO LOCK';
     }
   }
 
   // ---- Pixel Sprite Drawing Helper ----
-  function drawPixelMatrix(matrix, x, y, px, color, bgEyeColor, flipY) {
+  function drawPixelMatrix(matrix, x, y, px, color, eyeColor, flipY, accentColor) {
     const rows = matrix.length;
+    const cell = Math.ceil(px);
     for (let r = 0; r < rows; r++) {
       const rowStr = matrix[r];
       const drawRow = flipY ? (rows - 1 - r) : r;
+      const ry = Math.round(y + drawRow * px);
       for (let c = 0; c < rowStr.length; c++) {
         const ch = rowStr[c];
         if (ch === '1') {
           ctx.fillStyle = color;
-          ctx.fillRect(Math.round(x + c * px), Math.round(y + drawRow * px), px, px);
+          ctx.fillRect(Math.round(x + c * px), ry, cell, cell);
         } else if (ch === '2') {
-          ctx.fillStyle = bgEyeColor;
-          ctx.fillRect(Math.round(x + c * px), Math.round(y + drawRow * px), px, px);
+          ctx.fillStyle = eyeColor;
+          ctx.fillRect(Math.round(x + c * px), ry, cell, cell);
+        } else if (ch === '3') {
+          ctx.fillStyle = accentColor || '#ff2e4c';
+          ctx.fillRect(Math.round(x + c * px), ry, cell, cell);
         }
       }
     }
@@ -1829,18 +1887,18 @@
 
   // ---- Main Render ----
   function render() {
-    // Palette blend between classic Chrome paper (#f7f7f7) and Night Mode (#181928)
+    // Evil Club palette: dusty crimson-rose day (#faf0f1) <-> Blood Moon obsidian (#140407)
     const na = state.nightAlpha;
-    const bgR = Math.round(lerp(247, 24, na));
-    const bgG = Math.round(lerp(247, 25, na));
-    const bgB = Math.round(lerp(247, 40, na));
+    const bgR = Math.round(lerp(250, 20, na));
+    const bgG = Math.round(lerp(240, 4, na));
+    const bgB = Math.round(lerp(241, 7, na));
     const bgCol = `rgb(${bgR},${bgG},${bgB})`;
 
-    const inkR = Math.round(lerp(72, 234, na));
-    const inkG = Math.round(lerp(72, 232, na));
-    const inkB = Math.round(lerp(72, 224, na));
+    const inkR = Math.round(lerp(51, 255, na));
+    const inkG = Math.round(lerp(14, 224, na));
+    const inkB = Math.round(lerp(21, 230, na));
     const inkCol = `rgb(${inkR},${inkG},${inkB})`;
-    const mutedCol = na > 0.5 ? '#727599' : '#a8a8a8';
+    const mutedCol = na > 0.5 ? '#8f3042' : '#c79ba3';
 
     // Camera shake (rocket impacts + high-volume bass clipping beat thump!)
     let shakeX = 0;
@@ -1854,6 +1912,7 @@
       shakeY = rand(-totalShake * 0.65, totalShake * 0.65);
     }
 
+    ctx.setTransform(CANVAS_DPR, 0, 0, CANVAS_DPR, 0, 0);
     ctx.save();
     ctx.fillStyle = bgCol;
     ctx.fillRect(0, 0, STAGE_W, STAGE_H);
@@ -1865,56 +1924,101 @@
     ctx.clip();
     ctx.translate(shakeX, shakeY);
 
+    // Subtle rising crimson heat vignette when volume >= 55%
+    if (state.volume >= 55) {
+      const heat = clamp((state.volume - 55) / 45, 0, 1);
+      const heatGrad = ctx.createLinearGradient(0, FLOOR_Y, 0, HUD_H);
+      heatGrad.addColorStop(0, `rgba(255, 34, 68, ${0.14 * heat})`);
+      heatGrad.addColorStop(1, 'rgba(255, 34, 68, 0)');
+      ctx.fillStyle = heatGrad;
+      ctx.fillRect(0, HUD_H, STAGE_W, FLOOR_Y - HUD_H);
+    }
+
     // Subtle Rewind / Muffle tint overlays
     if (state.rewindTimer > 0) {
-      ctx.fillStyle = 'rgba(140, 122, 230, 0.10)';
+      ctx.fillStyle = 'rgba(140, 122, 230, 0.12)';
       ctx.fillRect(0, HUD_H, STAGE_W, FLOOR_Y - HUD_H + 14);
     } else if (state.muffleTimer > 0) {
-      ctx.fillStyle = 'rgba(255, 71, 87, 0.08)';
+      ctx.fillStyle = 'rgba(255, 38, 70, 0.12)';
       ctx.fillRect(0, HUD_H, STAGE_W, FLOOR_Y - HUD_H + 14);
     }
 
-    // Night stars & crescent moon
+    // Subtle Evil Club parallax jagged horizon ridge & watermark
+    ctx.save();
+    const ridgeOffset = (state.scrollX * 0.08) % 260;
+    ctx.fillStyle = na > 0.5 ? 'rgba(130, 18, 38, 0.22)' : 'rgba(180, 32, 56, 0.07)';
+    ctx.beginPath();
+    ctx.moveTo(-260, FLOOR_Y);
+    for (let rx = -ridgeOffset - 260; rx < STAGE_W + 260; rx += 260) {
+      ctx.lineTo(rx + 40, FLOOR_Y - 34);
+      ctx.lineTo(rx + 78, FLOOR_Y - 16);
+      ctx.lineTo(rx + 122, FLOOR_Y - 64); // Evil lair spire peak
+      ctx.lineTo(rx + 146, FLOOR_Y - 24);
+      ctx.lineTo(rx + 195, FLOOR_Y - 46);
+      ctx.lineTo(rx + 260, FLOOR_Y);
+    }
+    ctx.lineTo(STAGE_W + 260, FLOOR_Y);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = na > 0.5 ? 'rgba(255, 46, 76, 0.11)' : 'rgba(184, 20, 47, 0.065)';
+    ctx.font = '900 44px ui-monospace, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('EVIL CLUB', STAGE_W * 0.5, 224);
+    ctx.textAlign = 'left';
+    ctx.restore();
+
+    // Blood Moon & Crimson Stars during Night Mode
     if (na > 0.08) {
       ctx.save();
-      ctx.globalAlpha = na * 0.8;
-      ctx.fillStyle = '#eceae3';
+      ctx.globalAlpha = na * 0.9;
       for (const st of state.bgStars) {
         const blink = 0.5 + 0.5 * Math.sin(state.elapsed * 4 + st.tw);
+        ctx.fillStyle = st.tw > 3.1 ? '#ff4d6a' : '#ffe3e8';
         ctx.fillRect(st.x, st.y, st.r + blink * 0.8, st.r + blink * 0.8);
       }
-      // Pixel moon
+      // Glowing Blood Moon
+      const moonGrad = ctx.createRadialGradient(680, 110, 10, 680, 110, 44);
+      moonGrad.addColorStop(0, 'rgba(255, 46, 76, 0.45)');
+      moonGrad.addColorStop(1, 'rgba(255, 46, 76, 0)');
+      ctx.fillStyle = moonGrad;
       ctx.beginPath();
-      ctx.arc(680, 108, 16, 0, Math.PI * 2);
+      ctx.arc(680, 110, 44, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = bgCol;
+
+      ctx.fillStyle = '#ff2e4c';
       ctx.beginPath();
-      ctx.arc(687, 103, 14, 0, Math.PI * 2);
+      ctx.arc(680, 110, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#b8102b';
+      ctx.beginPath();
+      ctx.arc(675, 106, 5, 0, Math.PI * 2);
+      ctx.arc(686, 116, 3.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
 
-    // Clouds
-    ctx.fillStyle = na > 0.5 ? 'rgba(236,234,227,0.16)' : '#dcdcdc';
+    // Smoky crimson-tinted clouds
+    ctx.fillStyle = na > 0.5 ? 'rgba(255, 92, 118, 0.14)' : '#ebd4d8';
     for (const cl of state.clouds) {
       const s = cl.s;
       ctx.fillRect(cl.x, cl.y, 46 * s, 10 * s);
       ctx.fillRect(cl.x + 10 * s, cl.y - 7 * s, 26 * s, 9 * s);
     }
 
-    // Approaching 100% Checkered Finish Ribbon teaser when >= 94%
+    // Approaching 100% EVIL Hazard Finish Ribbon teaser when >= 94%
     if (state.mode === 'playing' && state.volume >= 94) {
       const progress = clamp((state.volume - 94) / 6, 0, 1);
       const ribbonX = lerp(STAGE_W - 10, state.dino.x + 56, progress);
       ctx.save();
-      ctx.globalAlpha = 0.25 + progress * 0.65;
+      ctx.globalAlpha = 0.30 + progress * 0.65;
       for (let ry = CEIL_Y; ry < FLOOR_Y; ry += 12) {
-        ctx.fillStyle = (Math.floor(ry / 12) % 2 === 0) ? '#ff4757' : '#ffffff';
+        ctx.fillStyle = (Math.floor(ry / 12) % 2 === 0) ? '#e01b39' : '#1c0509';
         ctx.fillRect(ribbonX, ry, 10, 12);
       }
-      ctx.fillStyle = '#ff4757';
-      ctx.font = 'bold 12px ui-monospace, monospace';
-      ctx.fillText('100%', ribbonX - 10, CEIL_Y + 14);
+      ctx.fillStyle = '#e01b39';
+      ctx.font = '900 12px ui-monospace, monospace';
+      ctx.fillText('100% EVIL', ribbonX - 24, CEIL_Y + 14);
       ctx.restore();
     }
 
@@ -2202,8 +2306,8 @@
       const pulse = audio.beatPulse * 6;
       const sy = FLOOR_Y - 126;
       ctx.save();
-      ctx.fillStyle = '#222436';
-      ctx.strokeStyle = '#ff6b35';
+      ctx.fillStyle = '#1f080d';
+      ctx.strokeStyle = '#ff2e4c';
       ctx.lineWidth = 3;
       ctx.fillRect(sp.x, sy, 58, 124);
       ctx.strokeRect(sp.x, sy, 58, 124);
@@ -2212,16 +2316,16 @@
       ctx.beginPath();
       ctx.arc(sp.x + 29, sy + 28, 11 + pulse * 0.4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#181928';
+      ctx.fillStyle = '#140407';
       ctx.beginPath();
       ctx.arc(sp.x + 29, sy + 28, 5, 0, Math.PI * 2);
       ctx.fill();
       // Main subwoofer cone
-      ctx.fillStyle = '#ff6b35';
+      ctx.fillStyle = '#ff2e4c';
       ctx.beginPath();
       ctx.arc(sp.x + 29, sy + 82, 20 + pulse * 0.7, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#181928';
+      ctx.fillStyle = '#140407';
       ctx.beginPath();
       ctx.arc(sp.x + 29, sy + 82, 10 + pulse * 0.3, 0, Math.PI * 2);
       ctx.fill();
@@ -2234,14 +2338,14 @@
       ctx.save();
       ctx.globalAlpha = img.life * 2.1;
       const mat = img.ducking ? DINO_DUCK_A : DINO_STAND_A;
-      const px = 2.2;
+      const px = 2.15;
       const h = mat.length * px;
       const drawY = img.dir === 1 ? img.y - h : img.y;
-      drawPixelMatrix(mat, img.x, drawY, px, '#8c7ae6', bgCol, img.dir === -1);
+      drawPixelMatrix(mat, img.x, drawY, px, '#8c7ae6', bgCol, img.dir === -1, '#ff4d6a');
       ctx.restore();
     }
 
-    // ---- Draw Immortal Dino ----
+    // ---- Draw Immortal Evil Club Dino (with crimson devil horns + glowing red eye!) ----
     const blinkSkip = d.invuln > 0 && Math.floor(d.invuln * 22) % 2 === 0;
     if (!blinkSkip) {
       const stepFrame = Math.floor(d.runAnim) % 2 === 0;
@@ -2249,12 +2353,14 @@
       const mat = isDuck
         ? (stepFrame ? DINO_DUCK_A : DINO_DUCK_B)
         : (stepFrame ? DINO_STAND_A : DINO_STAND_B);
-      const px = 2.25;
+      const px = 2.2;
       const spriteH = mat.length * px;
       const drawY = state.gravityDir === 1 ? d.y - spriteH : d.y;
-      const dinoCol = state.braking ? '#e04f26' : (d.hurtFace > 0 ? '#ff4757' : inkCol);
+      const dinoCol = state.braking ? '#ff5e2b' : (d.hurtFace > 0 ? '#e01b39' : inkCol);
+      const eyeCol = d.hurtFace > 0 ? '#ffffff' : '#ff2e4c';
+      const hornCol = state.braking ? '#ffdd59' : '#ff2e4c';
 
-      drawPixelMatrix(mat, d.x, drawY, px, dinoCol, bgCol, state.gravityDir === -1);
+      drawPixelMatrix(mat, d.x, drawY, px, dinoCol, eyeCol, state.gravityDir === -1, hornCol);
 
       // Attached Acoustic Foam wedges on dino's back
       if (state.foamCount > 0) {
@@ -2402,10 +2508,10 @@
   }
 
   function drawHud(na) {
-    const hudBg = na > 0.5 ? '#121320' : '#1d1e2e';
+    const hudBg = na > 0.5 ? '#120407' : '#1a080c';
     ctx.fillStyle = hudBg;
     ctx.fillRect(0, 0, STAGE_W, HUD_H);
-    ctx.fillStyle = '#353754';
+    ctx.fillStyle = '#5c1623';
     ctx.fillRect(0, HUD_H - 2, STAGE_W, 2);
 
     const hShakeX = state.hudShake > 0.2 ? rand(-state.hudShake, state.hudShake) : 0;
@@ -2425,7 +2531,7 @@
 
     // Big bold Volume percentage
     ctx.font = '900 30px ui-monospace, Menlo, Consolas, monospace';
-    ctx.fillStyle = isSubMute ? '#ff4757' : volInt >= 90 ? '#ffa502' : '#f7f7f7';
+    ctx.fillStyle = isSubMute ? '#ff4d6a' : volInt >= 90 ? '#ff6b2b' : '#fff0f2';
     ctx.fillText(`${volInt}%`, 46, 39);
 
     // Volume Bar Track
@@ -2434,49 +2540,51 @@
     const barW = 412;
     const barH = 26;
 
-    ctx.fillStyle = '#2d2f49';
+    ctx.fillStyle = '#2e0e15';
     ctx.fillRect(barX, barY, barW, barH);
 
-    // Sub-mute warning or normal progress fill
+    // Sub-mute warning or Evil Club crimson-lava progress fill
     if (state.visualVolume < 0) {
       const subFrac = clamp(Math.abs(state.visualVolume) / 15, 0, 1);
-      ctx.fillStyle = '#cf2636';
+      ctx.fillStyle = '#9e1129';
       ctx.fillRect(barX, barY, Math.max(8, barW * 0.28 * subFrac), barH);
-      ctx.fillStyle = '#ff9aa2';
+      ctx.fillStyle = '#ff9aa8';
       ctx.font = 'bold 11px ui-monospace, monospace';
       ctx.fillText('SUB-MUTE: ABSORBING ROOM NOISE', barX + 12, barY + 17);
     } else {
       const fillW = (clamp(state.visualVolume, 0, 100) / 100) * barW;
       const barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
-      barGrad.addColorStop(0, '#2ed573');
-      barGrad.addColorStop(0.55, '#ffa502');
-      barGrad.addColorStop(0.88, '#ff4757');
-      barGrad.addColorStop(1, '#ff1e56');
+      barGrad.addColorStop(0, '#a6142e');
+      barGrad.addColorStop(0.5, '#ff2e4c');
+      barGrad.addColorStop(0.85, '#ff6b2b');
+      barGrad.addColorStop(1, '#ffdd59');
       ctx.fillStyle = state.rewindTimer > 0 ? '#8c7ae6' : barGrad;
       ctx.fillRect(barX, barY, fillW, barH);
 
       // Elastic tension zone highlight (95%..100%)
       const z95 = barX + barW * 0.95;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
       ctx.fillRect(z95, barY, barW * 0.05, barH);
     }
 
     // Tick marks at 25%, 50%, 75%
-    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.fillStyle = 'rgba(255, 220, 226, 0.30)';
     for (const mark of [0.25, 0.5, 0.75]) {
       ctx.fillRect(barX + Math.round(barW * mark), barY, 2, barH);
     }
 
     // HUD hit/reclaim flash outline
-    ctx.strokeStyle = state.hudFlash > 0 ? state.hudFlashColor : '#585c87';
+    ctx.strokeStyle = state.hudFlash > 0 ? state.hudFlashColor : '#802032';
     ctx.lineWidth = state.hudFlash > 0 ? 3 : 2;
     ctx.strokeRect(barX, barY, barW, barH);
 
     // Subtle bar labels underneath
-    ctx.fillStyle = '#8d90b8';
+    ctx.fillStyle = '#c98591';
     ctx.font = 'bold 9px ui-monospace, monospace';
     ctx.fillText('0%', barX, barY + barH + 10);
+    ctx.fillStyle = '#ff5c77';
     ctx.fillText('50% ROCKETS', barX + barW * 0.5 - 32, barY + barH + 10);
+    ctx.fillStyle = '#c98591';
     ctx.fillText('100%', barX + barW - 22, barY + barH + 10);
 
     ctx.restore();
@@ -2485,23 +2593,23 @@
     const mins = Math.floor(state.elapsed / 60);
     const secs = (state.elapsed % 60).toFixed(1).padStart(4, '0');
     ctx.font = '900 21px ui-monospace, Menlo, Consolas, monospace';
-    ctx.fillStyle = '#f3f1ea';
+    ctx.fillStyle = '#fff0f2';
     ctx.textAlign = 'right';
     ctx.fillText(`${mins}:${secs}`, STAGE_W - 14, 27);
 
     const phase = getPhaseLabel(state.elapsed);
     ctx.font = 'bold 11px ui-monospace, monospace';
-    const pillW = Math.max(94, ctx.measureText(phase).width + 16);
+    const pillW = Math.max(98, ctx.measureText(phase).width + 16);
     const pillX = STAGE_W - 14 - pillW;
-    ctx.fillStyle = phase === 'ROCKET LOCK' || phase === 'FINAL SPRINT'
-      ? '#c0392b'
+    ctx.fillStyle = phase === 'ROCKET LOCK' || phase === 'FINAL TORMENT'
+      ? '#c91432'
       : phase === 'GRAVITY FLIP'
-        ? '#008b8b'
+        ? '#8f1548'
         : phase === 'BASS CLIPPING'
-          ? '#d35400'
+          ? '#d64515'
           : phase === 'OVERTIME'
-            ? '#b7791f'
-            : '#353754';
+            ? '#b86814'
+            : '#4a1420';
     ctx.fillRect(pillX, 33, pillW, 18);
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
