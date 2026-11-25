@@ -4,11 +4,11 @@
 
 ## what it is
 
-<one or two sentences: what is your evil input?>
+This game is a volume slider inspired by the chrome dino game. You cannot die in this one.. Though it sure will be quite a challenge!
 
 ## what input it collects
 
-<text? a volume? a phone number? brightness? a time? and how does it make that miserable?>
+It is a volume slider.
 
 ## screenshot
 
