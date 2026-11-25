@@ -849,7 +849,7 @@
       flap: 0,
       fleeTimer: 0,
       reclaimGrace: 0,
-      stolenAmount: 9,
+      stolenAmount: 12,
       vx: 0,
       vy: 0
     });
@@ -974,13 +974,13 @@
     const targetY = clamp(dinoCenterY() + (targetOffsetY || 0), CEIL_Y + 24, FLOOR_Y - 24);
     state.rockets.push({
       phase: 'tracking', // 'tracking' -> 'locked' -> 'firing'
-      timer: 0.56,
-      beepTimer: 0.20,
+      timer: 0.46,
+      beepTimer: 0.19,
       x: STAGE_W + 24,
       y: targetY,
       w: 58,
       h: 24,
-      vx: -840,
+      vx: -940,
       hit: false,
       dodged: false
     });
@@ -1045,9 +1045,9 @@
   function updateDirector(dt) {
     const t = state.elapsed;
 
-    // Fast, dynamic arcade speed: 430 -> 665 px/s!
+    // Fast, intense arcade speed: 455 -> 710 px/s!
     const speedMult = IS_PORTRAIT_PHONE ? 0.84 : 1.0;
-    state.speed = clamp(430 + t * 7.8, 430, 665) * speedMult;
+    state.speed = clamp(455 + t * 8.6, 455, 710) * speedMult;
 
     // ---- Scripted Set-Piece Milestones ----
     if (!state.milestones.night1 && t >= 7.5) {
@@ -1060,7 +1060,7 @@
       state.milestones.tungIntro = true;
       showBanner('🪵 TUNG TUNG TUNG SAHUR! STOMP HEAD FOR +10%', '#c96a2b', 1.9);
       spawnTungSahur();
-      state.spawnCooldown = Math.max(state.spawnCooldown, 1.05);
+      state.spawnCooldown = Math.max(state.spawnCooldown, 0.95);
     }
 
     if (!state.milestones.modal1 && t >= 13.0) {
@@ -1072,13 +1072,13 @@
       state.milestones.rocketIntro = true;
       showBanner('🚀 ROCKETS ONLINE!', '#ff3838', 1.7);
       spawnRocket(0);
-      state.rocketCooldown = 3.5;
+      state.rocketCooldown = 2.9;
     }
 
     if (!state.milestones.gravity1 && t >= 21.0) {
       state.milestones.gravity1 = true;
       spawnGravityGate();
-      state.spawnCooldown = Math.max(state.spawnCooldown, 1.15);
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.05);
     }
 
     if (!state.milestones.speaker1 && t >= 26.3 && state.gravityFlipTimer <= 0) {
@@ -1086,30 +1086,30 @@
       spawnSpeakerCannon();
     }
 
-    if (!state.milestones.overtime && t >= 28.0) {
+    if (!state.milestones.overtime && t >= 26.0) {
       state.milestones.overtime = true;
       showBanner('★ GRAB +20% OVERDRIVE STARS!', '#f5a623', 2.0);
       state.overtimeStarCooldown = 1.0;
-      state.overtimeSpeakerCooldown = 10.0;
+      state.overtimeSpeakerCooldown = 9.0;
     }
 
-    if (!state.milestones.modal2 && t >= 38.5 && hearingModal.classList.contains('hidden')) {
+    if (!state.milestones.modal2 && t >= 36.5 && hearingModal.classList.contains('hidden')) {
       state.milestones.modal2 = true;
       showHearingModal();
     }
 
-    if (!state.milestones.gravity2 && t >= 47.0 && !state.speaker) {
+    if (!state.milestones.gravity2 && t >= 45.0 && !state.speaker) {
       state.milestones.gravity2 = true;
       spawnGravityGate();
-      state.spawnCooldown = Math.max(state.spawnCooldown, 1.15);
+      state.spawnCooldown = Math.max(state.spawnCooldown, 1.05);
     }
 
-    // ---- Early Volume Boost Notes (+8% from 0:06+) so fast play climbs rapidly ----
-    if (t >= 6.0 && t < 28.0 && !state.speaker) {
+    // ---- Early Volume Boost Notes (+8% from 0:06+) ----
+    if (t >= 6.0 && t < 26.0 && !state.speaker) {
       state.boostCooldown -= dt;
       if (state.boostCooldown <= 0) {
         spawnOverdriveStar(8);
-        state.boostCooldown = rand(2.8, 3.8);
+        state.boostCooldown = rand(2.6, 3.6);
       }
     }
 
@@ -1118,32 +1118,32 @@
       state.rocketCooldown -= dt;
       if (state.rocketCooldown <= 0) {
         spawnRocket(0);
-        // Occasional staggered double-rocket deep in overtime (0:40+)
-        if (t >= 40.0 && Math.random() > 0.58) {
+        // Staggered double-rockets starting at 0:26+!
+        if (t >= 26.0 && Math.random() > 0.45) {
           setTimeout(() => {
             if (state.mode === 'playing' && !state.speaker) {
-              spawnRocket(state.gravityDir === 1 ? -52 : 52);
+              spawnRocket(state.gravityDir === 1 ? -54 : 54);
             }
-          }, 640);
+          }, 540);
         }
-        const baseInterval = t >= 35 ? 3.2 : t >= 29 ? 3.0 : 3.8;
-        state.rocketCooldown = rand(baseInterval - 0.4, baseInterval + 0.6);
+        const baseInterval = t >= 32 ? 2.5 : t >= 24 ? 2.8 : 3.2;
+        state.rocketCooldown = rand(baseInterval - 0.35, baseInterval + 0.5);
       }
     }
 
-    // ---- Comeback Stars (0:28+) & Returning Speaker ----
-    if (t >= 28.0) {
+    // ---- Comeback Stars (0:26+) & Returning Speaker ----
+    if (t >= 26.0) {
       state.overtimeStarCooldown -= dt;
       if (state.overtimeStarCooldown <= 0) {
         spawnOverdriveStar(20);
-        state.overtimeStarCooldown = rand(2.8, 3.8);
+        state.overtimeStarCooldown = rand(2.6, 3.6);
       }
 
-      if (t >= 35.0 && !state.speaker && state.gravityFlipTimer <= 0) {
+      if (t >= 34.0 && !state.speaker && state.gravityFlipTimer <= 0) {
         state.overtimeSpeakerCooldown -= dt;
         if (state.overtimeSpeakerCooldown <= 0) {
           spawnSpeakerCannon();
-          state.overtimeSpeakerCooldown = 14.0;
+          state.overtimeSpeakerCooldown = 12.5;
         }
       }
     }
@@ -1151,39 +1151,39 @@
     // ---- Main Track Obstacle Spawner ----
     // Hold spawning during Speaker Cannon showcase and right before Gravity Flip return
     if (state.speaker) return;
-    if (state.gravityFlipTimer > 0 && state.gravityFlipTimer < 0.75) return;
+    if (state.gravityFlipTimer > 0 && state.gravityFlipTimer < 0.70) return;
 
     state.spawnCooldown -= dt;
     if (state.spawnCooldown <= 0) {
-      // Scale minimum horizontal spacing directly with high run speed so gaps stay clean
+      // Tighter high-speed gaps that still leave room to react
       let rightmost = 0;
       for (const ob of state.obstacles) {
         if (ob.state !== 'fleeing' && ob.x > rightmost) rightmost = ob.x;
       }
-      const minGap = clamp(state.speed * 0.56, IS_PORTRAIT_PHONE ? 225 : 275, IS_PORTRAIT_PHONE ? 320 : 390);
+      const minGap = clamp(state.speed * 0.49, IS_PORTRAIT_PHONE ? 205 : 245, IS_PORTRAIT_PHONE ? 295 : 360);
       if (STAGE_W - rightmost < minGap && rightmost > 0) {
-        state.spawnCooldown = 0.12;
+        state.spawnCooldown = 0.10;
         return;
       }
 
       // Dynamic unlocked pool (potatoes at 0:08+, Tung Sahur at 0:10.5+)
       const roll = Math.random();
-      if (t < 5.0) {
+      if (t < 4.5) {
         spawnCactus();
       } else if (t < 8.0) {
-        if (roll < 0.55) spawnCactus();
+        if (roll < 0.52) spawnCactus();
         else spawnBird();
       } else if (t < 11.0) {
-        if (roll < 0.35) spawnCactus();
+        if (roll < 0.34) spawnCactus();
         else if (roll < 0.62) spawnBird();
         else spawnPotato();
-      } else if (t < 16.5) {
-        if (roll < 0.26) spawnCactus();
-        else if (roll < 0.46) spawnBird();
-        else if (roll < 0.68) spawnPotato();
+      } else if (t < 16.0) {
+        if (roll < 0.25) spawnCactus();
+        else if (roll < 0.45) spawnBird();
+        else if (roll < 0.67) spawnPotato();
         else if (roll < 0.85) spawnTungSahur();
         else spawnFoamWall();
-      } else if (t < 19.0) {
+      } else if (t < 18.5) {
         if (roll < 0.22) spawnCactus();
         else if (roll < 0.38) spawnBird();
         else if (roll < 0.58) spawnPotato();
@@ -1201,9 +1201,19 @@
         else spawnRewindTape();
       }
 
-      // Snappy fast-paced rhythm
-      const baseGapSec = clamp(1.12 - t * 0.013, 0.72, 1.12);
-      state.spawnCooldown = rand(baseGapSec * 0.82, baseGapSec * 1.15);
+      // Double-threat staggered air combo after 0:16s!
+      if (t >= 16.0 && Math.random() < 0.28) {
+        setTimeout(() => {
+          if (state.mode === 'playing' && !state.speaker && state.gravityFlipTimer <= 0) {
+            if (Math.random() < 0.55) spawnPotato();
+            else spawnBird();
+          }
+        }, 240);
+      }
+
+      // Dense, fast-paced arcade rhythm
+      const baseGapSec = clamp(0.98 - t * 0.015, 0.58, 0.98);
+      state.spawnCooldown = rand(baseGapSec * 0.82, baseGapSec * 1.12);
     }
   }
 
@@ -1316,17 +1326,17 @@
     let passiveRate = 0;
     if (!state.braking) {
       if (state.rewindTimer > 0) {
-        passiveRate = -3.0;
+        passiveRate = -4.5;
       } else if (state.shushTimer > 0) {
         passiveRate = 0;
       } else {
         passiveRate = 5.6;
         if (state.volume >= 95) {
           const tElastic = clamp((state.volume - 95) / 5, 0, 1);
-          passiveRate *= lerp(0.78, 0.56, tElastic);
+          passiveRate *= lerp(0.78, 0.58, tElastic);
         }
         if (state.foamCount > 0) {
-          passiveRate *= 0.68;
+          passiveRate *= 0.55;
         }
       }
     }
@@ -1341,7 +1351,7 @@
     if (state.latchedDrone) {
       state.latchedDrone.timer -= dt;
       state.latchedDrone.pulse += dt * 12;
-      const drain = 5.5 * dt;
+      const drain = 7.0 * dt;
       state.volume = clamp(state.volume - drain, MIN_VOL, MAX_VOL);
       state.volumeLost += drain;
       if (state.latchedDrone.timer <= 0) {
@@ -1646,12 +1656,12 @@
         ob.y = ob.baseY - Math.abs(Math.sin(ob.spin * 0.6)) * 12 * ob.dir;
       }
 
-      // Clean dodge bonus! Surviving fast hazards actively boosts your volume
+      // Clean dodge bonus! Surviving intense fast hazards surges your volume up
       if (!ob.hit && !ob.dodged && ob.x + ob.w < d.x) {
         ob.dodged = true;
-        changeVolume(1.5, 'recover');
+        changeVolume(2.0, 'recover');
         audio.playDodgePop();
-        addFloatingText(d.x + 18, dinoCenterY() - 26, '+1.5%', '#2ed573', 0.82);
+        addFloatingText(d.x + 18, dinoCenterY() - 26, '+2%', '#2ed573', 0.86);
       }
 
       // Slightly inset obstacle hitbox for fair near-misses
@@ -1666,7 +1676,7 @@
             : (d.vy < 0 && hb.y >= ob.y + ob.h - 30);
           if (stomping) {
             ob.hit = true;
-            d.vy = -540 * state.gravityDir;
+            d.vy = -560 * state.gravityDir;
             d.grounded = false;
             d.slamming = false;
             changeVolume(10, 'recover');
@@ -1678,57 +1688,57 @@
             continue;
           } else if (d.invuln <= 0) {
             ob.hit = true;
-            changeVolume(-10, 'damage');
+            changeVolume(-14, 'damage');
             state.hitsTaken += 1;
-            d.invuln = 0.80;
+            d.invuln = 0.58;
             d.hurtFace = 0.70;
             d.grounded = false;
-            d.vy = -420 * state.gravityDir;
-            d.x = Math.max(46, d.x - 40);
-            state.screenShake = Math.max(state.screenShake, 9);
+            d.vy = -440 * state.gravityDir;
+            d.x = Math.max(46, d.x - 52);
+            state.screenShake = Math.max(state.screenShake, 10);
             audio.playTungWhack();
             addBurst(ob.x + 12, dinoCenterY(), '#df9d56', 14, 1.2);
-            addFloatingText(d.x + 30, dinoCenterY() - 28, 'TUNG WHACK! -10%', '#ff6b2b', 1.15);
+            addFloatingText(d.x + 30, dinoCenterY() - 28, 'TUNG WHACK! -14%', '#ff6b2b', 1.15);
           }
         } else if (ob.type === 'cactus' && d.invuln <= 0) {
           ob.hit = true;
-          changeVolume(-6, 'damage');
+          changeVolume(-9, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.75;
+          d.invuln = 0.52;
           d.hurtFace = 0.55;
-          state.screenShake = Math.max(state.screenShake, 4);
+          state.screenShake = Math.max(state.screenShake, 5);
           audio.playCactusSqueak();
           spawnVolumePellets(d.x + 24, dinoCenterY());
           addBurst(ob.x + ob.w * 0.5, ob.y + ob.h * 0.5, '#2ed573', 8, 0.9);
-          addFloatingText(d.x + 24, dinoCenterY() - 24, 'SPILL -6%! CATCH!', '#ff6b6b', 1.0);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, 'SPILL -9%! CATCH!', '#ff6b6b', 1.0);
         } else if (ob.type === 'foam' && d.invuln <= 0) {
           ob.hit = true;
-          changeVolume(-4, 'damage');
+          changeVolume(-6, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.70;
+          d.invuln = 0.52;
           d.hurtFace = 0.45;
-          state.foamCount = 2;
-          state.foamTimer = 3.5;
+          state.foamCount = 3;
+          state.foamTimer = 4.0;
           audio.playFoam();
           addBurst(ob.x + 17, ob.y + 24, '#636e72', 12, 1.0);
-          addFloatingText(d.x + 24, dinoCenterY() - 24, 'MUFFLED -4%! JUMP ×2', '#57606f', 1.05);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, 'MUFFLED -6%! JUMP ×3', '#57606f', 1.05);
           state.obstacles.splice(i, 1);
           continue;
         } else if (ob.type === 'potato' && d.invuln <= 0) {
           ob.hit = true;
-          const penalty = ob.hasMoustache ? 10 : 6;
+          const penalty = ob.hasMoustache ? 13 : 8;
           changeVolume(-penalty, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.75;
+          d.invuln = 0.55;
           d.hurtFace = 0.55;
           audio.playPotatoHit(ob.hasMoustache);
           addBurst(ob.x + ob.w * 0.5, ob.y + ob.h * 0.5, '#ffd86b', 14, 1.05);
           if (ob.hasMoustache) {
-            state.shushTimer = 1.6;
+            state.shushTimer = 1.9;
             spawnStickyNote(penalty);
-            addFloatingText(d.x + 28, dinoCenterY() - 26, 'SIR SPUD SAYS SHH! -10%', '#e1b12c', 1.05);
+            addFloatingText(d.x + 28, dinoCenterY() - 26, 'SIR SPUD SAYS SHH! -13%', '#e1b12c', 1.05);
           } else {
-            addFloatingText(d.x + 28, dinoCenterY() - 26, 'POTATO\'D! -6%', '#f5a623', 1.05);
+            addFloatingText(d.x + 28, dinoCenterY() - 26, 'POTATO\'D! -8%', '#f5a623', 1.05);
           }
           state.obstacles.splice(i, 1);
           continue;
@@ -1736,21 +1746,21 @@
           ob.hit = true;
           state.hitsTaken += 1;
           d.hurtFace = 0.5;
-          state.latchedDrone = { timer: 2.2, pulse: 0 };
+          state.latchedDrone = { timer: 2.5, pulse: 0 };
           audio.playDroneLatch();
           addFloatingText(d.x + 26, dinoCenterY() - 28, 'MUTE LATCHED! JUMP + ↓ SLAM!', '#a55eea', 1.05);
           state.obstacles.splice(i, 1);
           continue;
         } else if (ob.type === 'rewind' && d.invuln <= 0) {
           ob.hit = true;
-          changeVolume(-3, 'damage');
+          changeVolume(-5, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.72;
+          d.invuln = 0.52;
           d.hurtFace = 0.5;
-          state.rewindTimer = 2.2;
+          state.rewindTimer = 2.5;
           audio.playRewind();
           addBurst(ob.x + 18, ob.y + 13, '#9c88ff', 12, 1.0);
-          addFloatingText(d.x + 24, dinoCenterY() - 24, '⏪ REWIND -3%!', '#8c7ae6', 1.05);
+          addFloatingText(d.x + 24, dinoCenterY() - 24, '⏪ REWIND -5%!', '#8c7ae6', 1.05);
           state.obstacles.splice(i, 1);
           continue;
         }
@@ -1810,7 +1820,7 @@
         }
         if (r.timer <= 0) {
           r.phase = 'locked';
-          r.timer = 0.28;
+          r.timer = 0.22;
           audio.playRadarBeep(true);
         }
       } else if (r.phase === 'locked') {
@@ -1840,27 +1850,27 @@
         const rBox = { x: r.x + 5, y: r.y - r.h * 0.5 + 3, w: r.w - 8, h: r.h - 6 };
         if (!r.hit && d.invuln <= 0 && aabb(hb, rBox)) {
           r.hit = true;
-          changeVolume(-12, 'damage');
+          changeVolume(-16, 'damage');
           state.hitsTaken += 1;
           state.rocketsEaten += 1;
-          d.invuln = 0.85;
+          d.invuln = 0.62;
           d.hurtFace = 0.85;
-          d.x = Math.max(42, d.x - 62);
-          state.muffleTimer = 1.5;
-          state.screenShake = 11;
+          d.x = Math.max(42, d.x - 76);
+          state.muffleTimer = 1.8;
+          state.screenShake = 13;
           audio.playRocketBoom();
           addBurst(r.x + 12, r.y, '#ff4757', 20, 1.45);
           addBurst(r.x + 12, r.y, '#ffa502', 14, 1.15);
-          addFloatingText(d.x + 36, dinoCenterY() - 28, 'BLOWOUT -12%!', '#ff3838', 1.2);
+          addFloatingText(d.x + 36, dinoCenterY() - 28, 'BLOWOUT -16%!', '#ff3838', 1.22);
           state.rockets.splice(i, 1);
           continue;
         }
 
         if (!r.hit && !r.dodged && r.x + r.w < d.x) {
           r.dodged = true;
-          changeVolume(2.0, 'recover');
+          changeVolume(3.0, 'recover');
           audio.playDodgePop();
-          addFloatingText(d.x + 18, dinoCenterY() - 28, 'ROCKET DODGED +2%!', '#2ed573', 0.9);
+          addFloatingText(d.x + 18, dinoCenterY() - 28, 'ROCKET DODGED +3%!', '#2ed573', 0.95);
         }
 
         if (r.x + r.w < -40) {
@@ -1885,7 +1895,7 @@
               y: FLOOR_Y - 56,
               w: 36,
               h: 56,
-              vx: -450,
+              vx: -540,
               hit: false
             });
             sp.nextAttack = 'treble';
@@ -1894,14 +1904,14 @@
             state.speakerWaves.push({
               kind: 'treble',
               phase: 'telegraph',
-              timer: 0.62,
+              timer: 0.48,
               y: FLOOR_Y - 62, // Standing head height; ducking dino (36px) fits cleanly underneath!
               h: 20,
               hit: false
             });
             sp.nextAttack = 'bass';
           }
-          sp.fireTimer = 1.32;
+          sp.fireTimer = 1.08;
         }
         if (sp.timer <= 0) sp.exiting = true;
       } else {
@@ -1918,14 +1928,14 @@
         wv.x += wv.vx * dt;
         if (!wv.hit && d.invuln <= 0 && aabb(hb, wv)) {
           wv.hit = true;
-          changeVolume(-9, 'damage');
+          changeVolume(-12, 'damage');
           state.hitsTaken += 1;
-          d.invuln = 0.72;
+          d.invuln = 0.55;
           d.hurtFace = 0.55;
-          state.screenShake = 7;
+          state.screenShake = 8;
           audio.playSlam();
           addBurst(d.x + 20, dinoCenterY(), '#ff6b35', 12, 1.0);
-          addFloatingText(d.x + 28, dinoCenterY() - 24, 'BASS BLAST -9%!', '#ff6b35', 1.1);
+          addFloatingText(d.x + 28, dinoCenterY() - 24, 'BASS BLAST -12%!', '#ff6b35', 1.1);
         }
         if (wv.x + wv.w < -40) state.speakerWaves.splice(i, 1);
       } else {
@@ -1939,12 +1949,12 @@
           const beamBox = { x: 0, y: wv.y, w: STAGE_W - 60, h: wv.h };
           if (!wv.hit && d.invuln <= 0 && aabb(hb, beamBox)) {
             wv.hit = true;
-            changeVolume(-9, 'damage');
+            changeVolume(-12, 'damage');
             state.hitsTaken += 1;
-            d.invuln = 0.72;
+            d.invuln = 0.55;
             d.hurtFace = 0.55;
             addBurst(d.x + 20, wv.y + 8, '#00d2d3', 12, 1.0);
-            addFloatingText(d.x + 28, dinoCenterY() - 24, 'TREBLE ZAP -9%!', '#00a8ff', 1.1);
+            addFloatingText(d.x + 28, dinoCenterY() - 24, 'TREBLE ZAP -12%!', '#00a8ff', 1.1);
           }
           if (wv.timer <= 0) state.speakerWaves.splice(i, 1);
         }
